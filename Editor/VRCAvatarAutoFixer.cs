@@ -21,6 +21,8 @@ namespace XVR.Tools
         private int tabIndex;
         private readonly string[] tabs = { "Diagnostics", "Auto-Fixes", "Optimizations", "Quest/Android" };
 
+        private Material _placeholderMaterial;
+
         private static readonly string[] StandardVisemeSuffixes =
         {
             "sil", "pp", "ff", "th", "dd", "kk", "ch", "ss", "nn", "rr", "aa", "e", "ih", "oh", "ou"
@@ -288,7 +290,7 @@ namespace XVR.Tools
 
             EditorGUILayout.BeginVertical(boxStyle);
             GUILayout.Label("1-Click Master Fix", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Runs all safe, essential fixes: missing scripts, materials, bounds, audio, mesh import settings, scale, view position, and lip sync.", MessageType.Info);
+            EditorGUILayout.HelpBox("Runs safe fixes: missing scripts, materials, bounds, audio, view position, and lip sync. Does not change scale or reimport meshes.", MessageType.Info);
             GUI.backgroundColor = new Color(0.2f, 0.8f, 0.2f);
             if (GUILayout.Button("RUN ALL MASTER FIXES", GUILayout.Height(40)))
                 RunAllFixes();
@@ -299,13 +301,13 @@ namespace XVR.Tools
             GUILayout.Label("Individual Fixes", EditorStyles.boldLabel);
             if (GUILayout.Button(new GUIContent("Remove Missing Scripts", "Removes broken script references from all GameObjects.")))
                 RemoveMissingScripts();
-            if (GUILayout.Button(new GUIContent("Clean Missing Materials", "Removes null/missing materials from renderer slots.")))
+            if (GUILayout.Button(new GUIContent("Clean Missing Materials", "Fills null material slots without changing submesh order (prevents hair/parts disappearing).")))
                 CleanMissingMaterials();
             if (GUILayout.Button(new GUIContent("Fix Skinned Mesh Bounds", "Expands skinned mesh bounds to reduce in-world culling issues.")))
                 FixMeshBounds();
             if (GUILayout.Button(new GUIContent("Fix Audio Sources (Spatial Blend)", "Forces all audio sources to be 3D spatialized and caps volume.")))
                 FixAudioSources();
-            if (GUILayout.Button(new GUIContent("Fix Mesh Read/Write", "Enables Read/Write on meshes required for some VRC features.")))
+            if (GUILayout.Button(new GUIContent("Fix Mesh Read/Write", "Enables Read/Write on meshes. Reimports models — run manually, not included in Master Fix.")))
                 FixMeshReadWrite();
             if (GUILayout.Button(new GUIContent("Normalize Root Scale to (1,1,1)", "Sets root scale to 1 to prevent IK issues.")))
                 NormalizeScale();
@@ -579,17 +581,14 @@ namespace XVR.Tools
             int materials = CleanMissingMaterials();
             int bounds = FixMeshBounds();
             int audio = FixAudioSources();
-            int meshes = FixMeshReadWrite();
-            NormalizeScale();
             bool viewAligned = AutoAlignViewPosition(silent: true);
             bool lipSync = AutoSetupLipSync(silent: true);
             MarkSceneDirty();
 
             string details = $"Removed {scripts} missing script(s)\n" +
-                             $"Cleaned {materials} material slot(s)\n" +
+                             $"Fixed {materials} missing material slot(s)\n" +
                              $"Fixed bounds on {bounds} skinned mesh(es)\n" +
                              $"Fixed {audio} audio source(s)\n" +
-                             $"Enabled Read/Write on {meshes} mesh(es)\n" +
                              $"View position: {(viewAligned ? "aligned" : "skipped")}\n" +
                              $"Lip sync: {(lipSync ? "configured" : "skipped")}";
 
@@ -655,34 +654,96 @@ namespace XVR.Tools
         private int CleanMissingMaterials()
         {
             var renderers = targetAvatar.GetComponentsInChildren<Renderer>(true);
-            int cleanedSlots = 0;
+            int fixedSlots = 0;
 
             Undo.RecordObjects(renderers, "Clean Missing Materials");
             foreach (var r in renderers)
             {
                 if (r == null) continue;
-                var mats = r.sharedMaterials;
-                bool needsUpdate = false;
-                var newMats = new List<Material>();
 
-                for (int i = 0; i < mats.Length; i++)
+                var mats = r.sharedMaterials;
+                if (mats.Length == 0) continue;
+
+                int subMeshCount = GetRendererSubMeshCount(r);
+                bool needsUpdate = false;
+                var newMats = (Material[])mats.Clone();
+
+                for (int i = 0; i < newMats.Length; i++)
                 {
-                    if (mats[i] != null)
-                        newMats.Add(mats[i]);
-                    else
-                    {
-                        needsUpdate = true;
-                        cleanedSlots++;
-                    }
+                    if (newMats[i] != null) continue;
+
+                    var fallback = FindFallbackMaterial(newMats, i) ?? GetPlaceholderMaterial();
+                    if (fallback == null) continue;
+
+                    newMats[i] = fallback;
+                    needsUpdate = true;
+                    fixedSlots++;
+                    Debug.LogWarning($"[Vtool] Filled missing material slot {i} on '{r.gameObject.name}' using '{fallback.name}'. Assign the correct material if needed.", r);
+                }
+
+                if (subMeshCount > 0 && newMats.Length < subMeshCount)
+                {
+                    var expanded = new Material[subMeshCount];
+                    for (int i = 0; i < subMeshCount; i++)
+                        expanded[i] = i < newMats.Length && newMats[i] != null
+                            ? newMats[i]
+                            : FindFallbackMaterial(newMats, i) ?? GetPlaceholderMaterial();
+
+                    newMats = expanded;
+                    needsUpdate = true;
                 }
 
                 if (needsUpdate)
-                    r.sharedMaterials = newMats.ToArray();
+                    r.sharedMaterials = newMats;
             }
 
-            if (cleanedSlots > 0) MarkSceneDirty();
-            Debug.Log($"[Vtool] Cleaned up {cleanedSlots} missing/null material slots.");
-            return cleanedSlots;
+            if (fixedSlots > 0) MarkSceneDirty();
+            Debug.Log($"[Vtool] Filled {fixedSlots} missing/null material slot(s) without changing submesh order.");
+            return fixedSlots;
+        }
+
+        private static int GetRendererSubMeshCount(Renderer renderer)
+        {
+            if (renderer is SkinnedMeshRenderer smr && smr.sharedMesh != null)
+                return smr.sharedMesh.subMeshCount;
+
+            var meshFilter = renderer.GetComponent<MeshFilter>();
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+                return meshFilter.sharedMesh.subMeshCount;
+
+            return 0;
+        }
+
+        private static Material FindFallbackMaterial(Material[] mats, int nullIndex)
+        {
+            for (int i = nullIndex - 1; i >= 0; i--)
+                if (mats[i] != null) return mats[i];
+
+            for (int i = nullIndex + 1; i < mats.Length; i++)
+                if (mats[i] != null) return mats[i];
+
+            return null;
+        }
+
+        private Material GetPlaceholderMaterial()
+        {
+            if (_placeholderMaterial != null) return _placeholderMaterial;
+
+            string folder = "Assets/Vtool";
+            if (!AssetDatabase.IsValidFolder("Assets/Vtool"))
+                AssetDatabase.CreateFolder("Assets", "Vtool");
+
+            string path = folder + "/MissingMaterialPlaceholder.mat";
+            _placeholderMaterial = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (_placeholderMaterial != null) return _placeholderMaterial;
+
+            var shader = Shader.Find("Standard") ?? Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) return null;
+
+            _placeholderMaterial = new Material(shader) { name = "MissingMaterialPlaceholder", color = new Color(1f, 0.2f, 0.8f) };
+            AssetDatabase.CreateAsset(_placeholderMaterial, path);
+            AssetDatabase.SaveAssets();
+            return _placeholderMaterial;
         }
 
         private int FixMeshBounds()
@@ -736,6 +797,11 @@ namespace XVR.Tools
 
         private int FixMeshReadWrite()
         {
+            if (!EditorUtility.DisplayDialog("Fix Mesh Read/Write",
+                "This reimports model files and can reset material assignments on some avatars.\n\nContinue?",
+                "Reimport", "Cancel"))
+                return 0;
+
             var meshes = new HashSet<Mesh>();
             foreach (var smr in targetAvatar.GetComponentsInChildren<SkinnedMeshRenderer>(true))
                 if (smr != null && smr.sharedMesh != null) meshes.Add(smr.sharedMesh);

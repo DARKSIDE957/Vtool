@@ -6,6 +6,21 @@
   "packages": {
     "com.vtool.autofixer": {
       "versions": {
+        "1.1.1": {
+          "name": "com.vtool.autofixer",
+          "displayName": "Vtool Avatar Auto-Fixer Pro",
+          "version": "1.1.1",
+          "description": "A comprehensive tool to auto-fix VRChat avatars, including diagnostics, Lip Sync setup, and Quest conversion.",
+          "unity": "2022.3",
+          "author": {
+            "name": "DARKSIDE957",
+            "email": "contact@vtool.local"
+          },
+          "url": "https://github.com/DARKSIDE957/Vtool/releases/download/v1.1.1/com.vtool.autofixer-1.1.1.zip",
+          "vpmDependencies": {
+            "com.vrchat.avatars": "^3.0.0"
+          }
+        },
         "1.1.0": {
           "name": "com.vtool.autofixer",
           "displayName": "Vtool Avatar Auto-Fixer Pro",

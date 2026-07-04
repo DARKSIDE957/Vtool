@@ -77,6 +77,13 @@ Once installed, open your Unity project. The tool is in the top menu:
 
 ## Changelog
 
+### 1.1.1
+
+**Fixed**
+- Master Fix removing hair and avatar parts by deleting null material slots
+- Material slots now stay in the same order so submeshes (hair, body, clothes) stay mapped correctly
+- Mesh Read/Write and root scale normalization removed from Master Fix to prevent accidental model changes
+
 ### 1.1.0
 
 **Added**
