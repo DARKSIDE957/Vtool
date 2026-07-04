@@ -15,6 +15,25 @@ namespace XVR.Tools
         private int tabIndex = 0;
         private readonly string[] tabs = { "Diagnostics", "Auto-Fixes", "Optimizations", "Quest/Android" };
 
+        private void OnEnable()
+        {
+            AutoDetectAvatar();
+        }
+
+        private void AutoDetectAvatar()
+        {
+            if (targetAvatar != null) return;
+            System.Type descriptorType = GetVRCDescriptorType();
+            if (descriptorType != null)
+            {
+                var descriptors = FindObjectsOfType(descriptorType);
+                if (descriptors != null && descriptors.Length > 0)
+                {
+                    targetAvatar = ((Component)descriptors[0]).gameObject;
+                }
+            }
+        }
+
         [MenuItem("VRChat/Avatar Auto-Fixer Pro")]
         public static void ShowWindow()
         {
@@ -64,6 +83,11 @@ namespace XVR.Tools
             if (targetAvatar == null)
             {
                 EditorGUILayout.HelpBox("Select your avatar root GameObject to unlock features.", MessageType.Info);
+                if (GUILayout.Button("Auto-Detect Avatar in Scene", GUILayout.Height(30)))
+                {
+                    AutoDetectAvatar();
+                    if (targetAvatar == null) Debug.LogWarning("[Auto-Fixer] No avatar with a VRCAvatarDescriptor was found in the active scene.");
+                }
                 return;
             }
 
