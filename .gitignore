@@ -1,0 +1,13 @@
+.DS_Store
+Thumbs.db
+*.meta
+Library/
+Temp/
+Obj/
+Logs/
+UserSettings/
+.vs/
+.idea/
+*.csproj
+*.sln
+.netlify/
