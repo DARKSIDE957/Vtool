@@ -34,7 +34,7 @@ namespace XVR.Tools
             }
         }
 
-        [MenuItem("VRChat/Avatar Auto-Fixer Pro")]
+        [MenuItem("Vtool/Avatar Auto-Fixer Pro")]
         public static void ShowWindow()
         {
             var window = GetWindow<VRCAvatarAutoFixer>("VRC Auto-Fixer");

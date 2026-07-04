@@ -34,7 +34,7 @@ This tool is officially hosted as a VCC Custom Repository! You can easily instal
 
 ## Usage
 Once installed, open your Unity project. You will find the tool at the top of the screen:
-**`VRChat -> Avatar Auto-Fixer Pro`**
+**`Vtool -> Avatar Auto-Fixer Pro`**
 
 Drag your avatar's root GameObject into the tool to unlock all the fixing tabs.
 
