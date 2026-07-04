@@ -1,7 +1,7 @@
 {
   "name": "DARKSIDE957 VRChat Tools",
   "author": "DARKSIDE957",
-  "url": "https://darkside957.github.io/Vtool/index.json",
+  "url": "https://raw.githubusercontent.com/DARKSIDE957/Vtool/main/index.json",
   "id": "com.darkside957.vtool.repository",
   "packages": {
     "com.vtool.autofixer": {
