@@ -3,23 +3,37 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace XVR.Tools
 {
     public class VRCAvatarAutoFixer : EditorWindow
     {
+        private const string FallbackVersion = "1.2.0";
+        private const int RecommendedTextureMax = 2048;
+        private const int QuestPolyLimit = 20000;
+        private const float MinAvatarHeight = 0.3f;
+        private const float MaxAvatarHeight = 5f;
+
         private GameObject targetAvatar;
         private Vector2 scrollPos;
         private GUIStyle headerStyle;
         private GUIStyle subHeaderStyle;
+        private GUIStyle versionStyle;
         private GUIStyle boxStyle;
+        private GUIStyle cardStyle;
+        private GUIStyle sectionStyle;
         private GUIStyle warningStyle;
         private GUIStyle successStyle;
         private GUIStyle errorStyle;
         private int tabIndex;
-        private readonly string[] tabs = { "Diagnostics", "Auto-Fixes", "Optimizations", "Quest/Android" };
+        private int textureCapSize = 2048;
+        private bool stylesInitialized;
+        private static string cachedVersion;
+        private readonly string[] tabs = { "Diagnostics", "Auto-Fixes", "Performance", "Quest/Android" };
 
         private Material _placeholderMaterial;
 
@@ -39,7 +53,7 @@ namespace XVR.Tools
         public static void ShowWindow()
         {
             var window = GetWindow<VRCAvatarAutoFixer>("VRC Auto-Fixer");
-            window.minSize = new Vector2(480, 720);
+            window.minSize = new Vector2(500, 760);
             window.Show();
         }
 
@@ -74,52 +88,86 @@ namespace XVR.Tools
 
         private void InitStyles()
         {
-            if (headerStyle == null)
+            if (stylesInitialized) return;
+            stylesInitialized = true;
+
+            headerStyle = new GUIStyle(EditorStyles.boldLabel)
             {
-                headerStyle = new GUIStyle(EditorStyles.boldLabel)
-                {
-                    fontSize = 18,
-                    alignment = TextAnchor.MiddleCenter,
-                    margin = new RectOffset(10, 10, 10, 10)
-                };
-            }
+                fontSize = 20,
+                alignment = TextAnchor.MiddleLeft,
+                margin = new RectOffset(4, 4, 4, 0)
+            };
 
-            if (subHeaderStyle == null)
+            subHeaderStyle = new GUIStyle(EditorStyles.miniLabel)
             {
-                subHeaderStyle = new GUIStyle(EditorStyles.miniLabel)
-                {
-                    alignment = TextAnchor.MiddleCenter,
-                    normal = { textColor = new Color(0.65f, 0.65f, 0.65f) }
-                };
-            }
+                alignment = TextAnchor.MiddleLeft,
+                normal = { textColor = new Color(0.7f, 0.7f, 0.7f) },
+                margin = new RectOffset(4, 4, 0, 4)
+            };
 
-            if (boxStyle == null)
+            versionStyle = new GUIStyle(EditorStyles.miniLabel)
             {
-                boxStyle = new GUIStyle(GUI.skin.box)
-                {
-                    padding = new RectOffset(15, 15, 15, 15),
-                    margin = new RectOffset(10, 10, 10, 10)
-                };
-            }
+                alignment = TextAnchor.MiddleRight,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = new Color(0.85f, 0.25f, 0.3f) }
+            };
 
-            if (warningStyle == null)
-                warningStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(1f, 0.6f, 0f) }, fontStyle = FontStyle.Bold };
+            boxStyle = new GUIStyle(GUI.skin.box)
+            {
+                padding = new RectOffset(14, 14, 12, 12),
+                margin = new RectOffset(8, 8, 6, 6)
+            };
 
-            if (successStyle == null)
-                successStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.2f, 0.8f, 0.2f) }, fontStyle = FontStyle.Bold };
+            cardStyle = new GUIStyle(GUI.skin.box)
+            {
+                padding = new RectOffset(12, 12, 10, 10),
+                margin = new RectOffset(8, 8, 4, 4)
+            };
 
-            if (errorStyle == null)
-                errorStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.9f, 0.2f, 0.2f) }, fontStyle = FontStyle.Bold };
+            sectionStyle = new GUIStyle(EditorStyles.boldLabel)
+            {
+                fontSize = 12,
+                margin = new RectOffset(0, 0, 6, 4)
+            };
+
+            warningStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(1f, 0.6f, 0f) }, fontStyle = FontStyle.Bold };
+            successStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.2f, 0.85f, 0.35f) }, fontStyle = FontStyle.Bold };
+            errorStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.95f, 0.25f, 0.25f) }, fontStyle = FontStyle.Bold };
+        }
+
+        private void DrawHeader()
+        {
+            EditorGUILayout.BeginVertical(boxStyle);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.BeginVertical();
+            GUILayout.Label("Vtool Avatar Auto-Fixer Pro", headerStyle);
+            GUILayout.Label("Diagnose and fix VRChat upload errors without breaking your avatar", subHeaderStyle);
+            EditorGUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("v" + GetVersion(), versionStyle, GUILayout.Width(72));
+            EditorGUILayout.EndHorizontal();
+
+            var accentRect = GUILayoutUtility.GetRect(0, 2, GUILayout.ExpandWidth(true));
+            EditorGUI.DrawRect(accentRect, new Color(0.75f, 0.15f, 0.2f));
+            EditorGUILayout.EndVertical();
+        }
+
+        private void DrawDisclaimer()
+        {
+            EditorGUILayout.HelpBox(
+                "DISCLAIMER: Always back up your avatar before using this tool. " +
+                "The developer (DARKSIDE957) is NOT responsible if this tool breaks your avatar, " +
+                "removes parts, changes materials, or causes upload failures. Use at your own risk.",
+                MessageType.Warning);
         }
 
         private void OnGUI()
         {
             InitStyles();
+            DrawHeader();
+            DrawDisclaimer();
 
-            GUILayout.Label("VRChat Avatar Auto-Fixer Pro", headerStyle);
-            GUILayout.Label("Diagnose, fix, and optimize avatars for VRChat upload", subHeaderStyle);
-
-            EditorGUILayout.BeginVertical(boxStyle);
+            EditorGUILayout.BeginVertical(cardStyle);
             EditorGUILayout.BeginHorizontal();
             var newTarget = (GameObject)EditorGUILayout.ObjectField("Avatar Root", targetAvatar, typeof(GameObject), true);
             if (newTarget != targetAvatar)
@@ -161,7 +209,7 @@ namespace XVR.Tools
             {
                 case 0: DrawDiagnosticsTab(); break;
                 case 1: DrawAutoFixesTab(); break;
-                case 2: DrawOptimizationsTab(); break;
+                case 2: DrawPerformanceTab(); break;
                 case 3: DrawQuestTab(); break;
             }
 
@@ -189,6 +237,8 @@ namespace XVR.Tools
             DrawStat("Unique Materials:", stats.UniqueMaterialCount.ToString(), stats.UniqueMaterialCount > 16 ? errorStyle : (stats.UniqueMaterialCount > 8 ? warningStyle : successStyle));
             DrawStat("Mesh Renderers:", stats.MeshRendererCount.ToString(), EditorStyles.label);
             DrawStat("Bones:", stats.BoneCount.ToString(), stats.BoneCount > 256 ? warningStyle : EditorStyles.label);
+            DrawStat("Avatar Height:", $"{stats.AvatarHeightMeters:F2} m", GetHeightStyle(stats.AvatarHeightMeters));
+            DrawStat("Quest Poly Limit:", stats.PolyCount > QuestPolyLimit ? "Exceeded" : "OK", stats.PolyCount > QuestPolyLimit ? errorStyle : successStyle);
 
             EditorGUILayout.Space();
             if (stats.PolyCount > 100000)
@@ -204,12 +254,33 @@ namespace XVR.Tools
                 EditorGUILayout.HelpBox("High material slot count. Consider atlasing or merging materials.", MessageType.Warning);
 
             if (stats.LargeTextureCount > 0)
-                EditorGUILayout.HelpBox($"Detected {stats.LargeTextureCount} unique texture(s) larger than 2K. This increases VRAM usage.", MessageType.Warning);
+                EditorGUILayout.HelpBox($"Detected {stats.LargeTextureCount} unique texture(s) larger than 2K. VRChat recommends 2K max to avoid security check failures.", MessageType.Warning);
 
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("VRChat Components", EditorStyles.boldLabel);
+            GUILayout.Label("Textures & Memory", sectionStyle);
+            EditorGUILayout.Space();
+
+            DrawStat("Unique Textures:", stats.TextureCount.ToString(), EditorStyles.label);
+            DrawStat("4K+ Textures:", stats.Texture4KCount.ToString(), stats.Texture4KCount > 0 ? errorStyle : successStyle);
+            DrawStat("Over 2K Textures:", stats.TextureOver2KCount.ToString(), stats.TextureOver2KCount > 0 ? warningStyle : successStyle);
+            DrawStat("Est. Texture Memory:", $"~{stats.EstimatedTextureMemoryMB:F0} MB", stats.EstimatedTextureMemoryMB > 150 ? errorStyle : (stats.EstimatedTextureMemoryMB > 75 ? warningStyle : successStyle));
+            DrawStat("Missing Mipmaps:", stats.TexturesWithoutMipmaps.ToString(), stats.TexturesWithoutMipmaps > 0 ? warningStyle : successStyle);
+            DrawStat("Non-Power-of-Two:", stats.NonPowerOfTwoTextures.ToString(), stats.NonPowerOfTwoTextures > 0 ? warningStyle : successStyle);
+            DrawStat("Broken Shaders:", stats.BrokenShaderCount.ToString(), stats.BrokenShaderCount > 0 ? errorStyle : successStyle);
+            DrawStat("Null Material Slots:", stats.NullMaterialSlots.ToString(), stats.NullMaterialSlots > 0 ? errorStyle : successStyle);
+
+            if (stats.Texture4KCount > 0)
+                EditorGUILayout.HelpBox("4K+ textures increase download size and VRAM. Use Performance tab to cap import size (non-destructive — can be restored).", MessageType.Warning);
+
+            if (stats.EstimatedTextureMemoryMB > 150)
+                EditorGUILayout.HelpBox("Estimated texture memory is very high. This can cause Security Checks Failed on upload.", MessageType.Error);
+
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.BeginVertical(boxStyle);
+            GUILayout.Label("Upload Blockers", sectionStyle);
             EditorGUILayout.Space();
 
             DrawStat("VRC Avatar Descriptor:", stats.HasDescriptor ? "Present" : "Missing", stats.HasDescriptor ? successStyle : errorStyle);
@@ -248,9 +319,25 @@ namespace XVR.Tools
                 EditorGUILayout.HelpBox("Missing script references can block uploads. Use Remove Missing Scripts in Auto-Fixes.", MessageType.Error);
 
             if (stats.NonUnitScaleCount > 0)
-                EditorGUILayout.HelpBox("Non-unit local scales can cause IK and upload issues. Consider Normalize Scale.", MessageType.Warning);
+                EditorGUILayout.HelpBox("Non-unit local scales can cause IK and upload issues. Use Normalize Scale only if you know you need it.", MessageType.Warning);
+
+            if (stats.AvatarHeightMeters > MaxAvatarHeight || stats.AvatarHeightMeters < MinAvatarHeight)
+                EditorGUILayout.HelpBox($"Avatar height ({stats.AvatarHeightMeters:F2}m) is unusual. Expected roughly 1.2m–2.5m for humanoids.", MessageType.Warning);
+
+            if (stats.PolyCount > QuestPolyLimit)
+                EditorGUILayout.HelpBox($"Polygon count exceeds Quest limit ({QuestPolyLimit:N0}). Android/Quest uploads will fail or rank poorly.", MessageType.Warning);
+
+            if (stats.OtherAvatarsInScene > 0)
+                EditorGUILayout.HelpBox($"{stats.OtherAvatarsInScene} other VRCAvatarDescriptor(s) found in scene. Disable them before upload to avoid errors.", MessageType.Warning);
+
+            if (stats.BrokenShaderCount > 0)
+                EditorGUILayout.HelpBox("Broken/missing shaders detected (pink materials). Reassign shaders manually — do not upload with broken shaders.", MessageType.Error);
 
             EditorGUILayout.EndVertical();
+
+            EditorGUILayout.BeginVertical(boxStyle);
+            GUILayout.Label("VRChat Components", sectionStyle);
+            EditorGUILayout.Space();
 
             if (stats.QuestIncompatibleMaterials > 0)
             {
@@ -259,6 +346,13 @@ namespace XVR.Tools
                 EditorGUILayout.HelpBox($"{stats.QuestIncompatibleMaterials} material(s) are not using a Quest-compatible mobile shader. See the Quest/Android tab.", MessageType.Warning);
                 EditorGUILayout.EndVertical();
             }
+        }
+
+        private GUIStyle GetHeightStyle(float height)
+        {
+            if (height > MaxAvatarHeight || height < MinAvatarHeight) return errorStyle;
+            if (height > 2.5f || height < 1.0f) return warningStyle;
+            return successStyle;
         }
 
         private GUIStyle GetPolyStyle(int polyCount)
@@ -289,8 +383,8 @@ namespace XVR.Tools
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("1-Click Master Fix", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Runs safe fixes: missing scripts, materials, bounds, audio, view position, and lip sync. Does not change scale or reimport meshes.", MessageType.Info);
+            GUILayout.Label("1-Click Master Fix (Safe / Non-Visual)", sectionStyle);
+            EditorGUILayout.HelpBox("Only fixes upload errors that do NOT change how your avatar looks: scripts, material slot errors, bounds, audio, mipmaps, view position, and lip sync.", MessageType.Info);
             GUI.backgroundColor = new Color(0.2f, 0.8f, 0.2f);
             if (GUILayout.Button("RUN ALL MASTER FIXES", GUILayout.Height(40)))
                 RunAllFixes();
@@ -298,7 +392,8 @@ namespace XVR.Tools
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Individual Fixes", EditorStyles.boldLabel);
+            GUILayout.Label("Safe Individual Fixes", sectionStyle);
+            EditorGUILayout.HelpBox("These should not change your avatar's appearance.", MessageType.Info);
             if (GUILayout.Button(new GUIContent("Remove Missing Scripts", "Removes broken script references from all GameObjects.")))
                 RemoveMissingScripts();
             if (GUILayout.Button(new GUIContent("Clean Missing Materials", "Fills null material slots without changing submesh order (prevents hair/parts disappearing).")))
@@ -307,14 +402,21 @@ namespace XVR.Tools
                 FixMeshBounds();
             if (GUILayout.Button(new GUIContent("Fix Audio Sources (Spatial Blend)", "Forces all audio sources to be 3D spatialized and caps volume.")))
                 FixAudioSources();
-            if (GUILayout.Button(new GUIContent("Fix Mesh Read/Write", "Enables Read/Write on meshes. Reimports models — run manually, not included in Master Fix.")))
+            if (GUILayout.Button(new GUIContent("Enable Texture Mipmaps", "Enables mipmaps on avatar textures for better VRChat performance. Does not change close-up look.")))
+                FixTextureMipmaps();
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.BeginVertical(boxStyle);
+            GUILayout.Label("Manual Fixes (May Change Appearance)", sectionStyle);
+            EditorGUILayout.HelpBox("These can change how your avatar looks or reimport assets. Back up first.", MessageType.Warning);
+            if (GUILayout.Button(new GUIContent("Fix Mesh Read/Write", "Reimports models — can reset materials on some avatars.")))
                 FixMeshReadWrite();
-            if (GUILayout.Button(new GUIContent("Normalize Root Scale to (1,1,1)", "Sets root scale to 1 to prevent IK issues.")))
+            if (GUILayout.Button(new GUIContent("Normalize Root Scale to (1,1,1)", "Changes avatar size/position if root scale was not 1.")))
                 NormalizeScale();
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("VRChat Specific Auto-Setup", EditorStyles.boldLabel);
+            GUILayout.Label("VRChat Auto-Setup", sectionStyle);
             if (GUILayout.Button(new GUIContent("Auto-Align View Position (Eyes)", "Positions the VRC Viewpoint between the avatar's eyes.")))
                 AutoAlignViewPosition();
             if (GUILayout.Button(new GUIContent("Auto-Setup Lip Sync (Visemes)", "Finds vrc.v_* blendshapes and configures viseme lip sync.")))
@@ -324,27 +426,55 @@ namespace XVR.Tools
             EditorGUILayout.EndVertical();
         }
 
-        private void DrawOptimizationsTab()
+        private void DrawPerformanceTab()
         {
+            var stats = GatherDiagnostics();
+
             EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Prefab Utilities", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Unpacking a prefab completely disconnects it from the original file. This is often required before making deep structural changes.", MessageType.Info);
-            if (GUILayout.Button("Unpack Prefab Completely", GUILayout.Height(30)))
+            GUILayout.Label("Texture Import Settings", sectionStyle);
+            EditorGUILayout.HelpBox(
+                "These change Unity import settings only — your original texture files are NOT modified. " +
+                "Use Restore to bring import resolution back to the source file size.",
+                MessageType.Info);
+
+            DrawStat("4K+ Textures:", stats.Texture4KCount.ToString(), stats.Texture4KCount > 0 ? errorStyle : successStyle);
+            DrawStat("Over 2K:", stats.TextureOver2KCount.ToString(), stats.TextureOver2KCount > 0 ? warningStyle : successStyle);
+            DrawStat("Est. VRAM:", $"~{stats.EstimatedTextureMemoryMB:F0} MB", stats.EstimatedTextureMemoryMB > 150 ? errorStyle : EditorStyles.label);
+
+            EditorGUILayout.Space();
+            textureCapSize = EditorGUILayout.IntPopup("Cap Max Size To", textureCapSize,
+                new[] { "512", "1024", "2048 (Recommended)", "4096" },
+                new[] { 512, 1024, 2048, 4096 });
+
+            GUI.backgroundColor = new Color(0.2f, 0.6f, 0.9f);
+            if (GUILayout.Button($"Cap Avatar Textures to {textureCapSize}px (Import Settings)", GUILayout.Height(32)))
+                CapTextureImportSizes(textureCapSize);
+            GUI.backgroundColor = Color.white;
+
+            if (GUILayout.Button("Restore Texture Import Sizes (From Source Files)", GUILayout.Height(32)))
+                RestoreTextureImportSizes();
+
+            if (GUILayout.Button("Enable Mipmaps on Avatar Textures", GUILayout.Height(28)))
+                FixTextureMipmaps();
+
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.BeginVertical(boxStyle);
+            GUILayout.Label("Prefab Utilities", sectionStyle);
+            EditorGUILayout.HelpBox("Unpacking disconnects the prefab from its source file for deep edits.", MessageType.Info);
+            if (GUILayout.Button("Unpack Prefab Completely", GUILayout.Height(28)))
                 UnpackPrefab();
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Hierarchy Cleanup", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Removes empty GameObjects that are NOT bones. Back up first if you use constraints targeting empty objects.", MessageType.Warning);
-
-            if (GUILayout.Button("Remove Unused Empty GameObjects", GUILayout.Height(30)))
+            GUILayout.Label("Hierarchy Cleanup", sectionStyle);
+            EditorGUILayout.HelpBox("Removes empty GameObjects that are NOT bones. Can break constraints — back up first.", MessageType.Warning);
+            if (GUILayout.Button("Remove Unused Empty GameObjects", GUILayout.Height(28)))
             {
                 if (EditorUtility.DisplayDialog("Remove Empty GameObjects",
-                    "This will permanently remove empty objects that are not part of the avatar rig. Continue?",
+                    "This removes empty objects not part of the avatar rig. Continue?",
                     "Remove", "Cancel"))
-                {
                     CleanupEmptyGameObjects();
-                }
             }
             EditorGUILayout.EndVertical();
         }
@@ -385,6 +515,14 @@ namespace XVR.Tools
             public int MaterialSlotCount;
             public int UniqueMaterialCount;
             public int LargeTextureCount;
+            public int TextureCount;
+            public int Texture4KCount;
+            public int TextureOver2KCount;
+            public float EstimatedTextureMemoryMB;
+            public int TexturesWithoutMipmaps;
+            public int NonPowerOfTwoTextures;
+            public int BrokenShaderCount;
+            public int NullMaterialSlots;
             public int BoneCount;
             public int PhysBoneCount;
             public int ContactCount;
@@ -395,6 +533,8 @@ namespace XVR.Tools
             public int NonUnitScaleCount;
             public int LegacyDynamicBoneCount;
             public int QuestIncompatibleMaterials;
+            public int OtherAvatarsInScene;
+            public float AvatarHeightMeters;
             public int CriticalIssues;
             public int WarningIssues;
             public bool HasDescriptor;
@@ -413,8 +553,10 @@ namespace XVR.Tools
 
             var countedMeshes = new HashSet<Mesh>();
             var uniqueMaterials = new HashSet<Material>();
-            var checkedTextures = new HashSet<Texture>();
+            var avatarTextures = new HashSet<Texture>();
             var questShader = FindQuestShader();
+            bool boundsInit = false;
+            Bounds avatarBounds = default;
 
             var smrs = targetAvatar.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             var mfs = targetAvatar.GetComponentsInChildren<MeshFilter>(true);
@@ -442,25 +584,42 @@ namespace XVR.Tools
             foreach (var r in renderers)
             {
                 if (r == null) continue;
+
+                if (!boundsInit)
+                {
+                    avatarBounds = r.bounds;
+                    boundsInit = true;
+                }
+                else
+                {
+                    avatarBounds.Encapsulate(r.bounds);
+                }
+
                 var mats = r.sharedMaterials;
                 stats.MaterialSlotCount += mats.Length;
-                foreach (var mat in mats)
+                for (int i = 0; i < mats.Length; i++)
                 {
-                    if (mat == null) continue;
+                    var mat = mats[i];
+                    if (mat == null)
+                    {
+                        stats.NullMaterialSlots++;
+                        continue;
+                    }
+
                     uniqueMaterials.Add(mat);
+                    if (IsBrokenShader(mat.shader))
+                        stats.BrokenShaderCount++;
+
                     if (questShader != null && mat.shader != questShader)
                         stats.QuestIncompatibleMaterials++;
 
-                    var mainTex = mat.mainTexture;
-                    if (mainTex != null && checkedTextures.Add(mainTex))
-                    {
-                        if (mainTex.width > 2048 || mainTex.height > 2048)
-                            stats.LargeTextureCount++;
-                    }
+                    CollectMaterialTextures(mat, avatarTextures);
                 }
             }
 
             stats.UniqueMaterialCount = uniqueMaterials.Count;
+            AnalyzeTextures(avatarTextures, ref stats);
+            stats.AvatarHeightMeters = boundsInit ? avatarBounds.size.y : 0f;
             stats.AudioSourceCount = audioSources.Length;
 
             foreach (var a in audioSources)
@@ -483,6 +642,7 @@ namespace XVR.Tools
             stats.ContactCount = CountComponentsOfType("VRC.SDK3.Dynamics.Contact.Components.ContactBase");
             stats.ParticleSystemCount = targetAvatar.GetComponentsInChildren<ParticleSystem>(true).Length;
             stats.LegacyDynamicBoneCount = CountComponentsOfType("DynamicBone");
+            stats.OtherAvatarsInScene = CountOtherAvatarsInScene();
 
             var descriptorType = GetVRCDescriptorType();
             stats.HasDescriptor = descriptorType != null && targetAvatar.GetComponent(descriptorType) != null;
@@ -510,14 +670,23 @@ namespace XVR.Tools
             if (!stats.HasAnimatorController) stats.CriticalIssues++;
             if (stats.MissingScriptCount > 0) stats.CriticalIssues++;
             if (stats.PolyCount > 100000) stats.CriticalIssues++;
+            if (stats.BrokenShaderCount > 0) stats.CriticalIssues++;
+            if (stats.NullMaterialSlots > 0) stats.CriticalIssues++;
 
             if (stats.PolyCount > 70000) stats.WarningIssues++;
+            if (stats.PolyCount > QuestPolyLimit) stats.WarningIssues++;
             if (stats.MaterialSlotCount > 16) stats.WarningIssues++;
             if (stats.BadAudioCount > 0) stats.WarningIssues++;
             if (stats.NonUnitScaleCount > 0) stats.WarningIssues++;
             if (stats.LegacyDynamicBoneCount > 0) stats.WarningIssues++;
             if (stats.QuestIncompatibleMaterials > 0) stats.WarningIssues++;
             if (!stats.LipSyncConfigured) stats.WarningIssues++;
+            if (stats.Texture4KCount > 0) stats.WarningIssues++;
+            if (stats.TextureOver2KCount > 0) stats.WarningIssues++;
+            if (stats.EstimatedTextureMemoryMB > 75) stats.WarningIssues++;
+            if (stats.TexturesWithoutMipmaps > 0) stats.WarningIssues++;
+            if (stats.AvatarHeightMeters > MaxAvatarHeight || (stats.AvatarHeightMeters > 0 && stats.AvatarHeightMeters < MinAvatarHeight)) stats.WarningIssues++;
+            if (stats.OtherAvatarsInScene > 0) stats.WarningIssues++;
 
             if (stats.CriticalIssues > 0)
                 stats.OverallSummary = $"{stats.CriticalIssues} critical issue(s) and {stats.WarningIssues} warning(s) detected. Fix these before uploading.";
@@ -552,6 +721,104 @@ namespace XVR.Tools
             return targetAvatar.GetComponentsInChildren(type, true).Length;
         }
 
+        private int CountOtherAvatarsInScene()
+        {
+            var descriptorType = GetVRCDescriptorType();
+            if (descriptorType == null) return 0;
+
+            int count = 0;
+            foreach (var obj in FindObjectsCompat(descriptorType))
+            {
+                if (obj == null) continue;
+                var go = ((Component)obj).gameObject;
+                if (go != targetAvatar && go.activeInHierarchy)
+                    count++;
+            }
+            return count;
+        }
+
+        private static void CollectMaterialTextures(Material mat, HashSet<Texture> textures)
+        {
+            if (mat == null || mat.shader == null) return;
+
+            int propCount = ShaderUtil.GetPropertyCount(mat.shader);
+            for (int i = 0; i < propCount; i++)
+            {
+                if (ShaderUtil.GetPropertyType(mat.shader, i) != ShaderUtil.ShaderPropertyType.TexEnv)
+                    continue;
+
+                string propName = ShaderUtil.GetPropertyName(mat.shader, i);
+                var tex = mat.GetTexture(propName);
+                if (tex != null)
+                    textures.Add(tex);
+            }
+        }
+
+        private static void AnalyzeTextures(HashSet<Texture> textures, ref AvatarDiagnostics stats)
+        {
+            stats.TextureCount = textures.Count;
+            long memoryBytes = 0;
+
+            foreach (var tex in textures)
+            {
+                if (tex == null) continue;
+
+                int maxDim = Mathf.Max(tex.width, tex.height);
+                if (maxDim >= 4096) stats.Texture4KCount++;
+                if (maxDim > 2048) stats.TextureOver2KCount++;
+                if (maxDim > 2048) stats.LargeTextureCount++;
+
+                memoryBytes += EstimateTextureBytes(tex);
+
+                string path = AssetDatabase.GetAssetPath(tex);
+                if (string.IsNullOrEmpty(path)) continue;
+
+                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+                if (importer == null) continue;
+
+                if (!importer.mipmapEnabled)
+                    stats.TexturesWithoutMipmaps++;
+
+                importer.GetSourceTextureWidthAndHeight(out int srcW, out int srcH);
+                if (!IsPowerOfTwo(srcW) || !IsPowerOfTwo(srcH))
+                    stats.NonPowerOfTwoTextures++;
+            }
+
+            stats.EstimatedTextureMemoryMB = memoryBytes / (1024f * 1024f);
+        }
+
+        private static long EstimateTextureBytes(Texture tex)
+        {
+            int w = Mathf.Max(tex.width, 1);
+            int h = Mathf.Max(tex.height, 1);
+            long bytes = (long)w * h * 4;
+            return (long)(bytes * 1.33f);
+        }
+
+        private static bool IsPowerOfTwo(int value)
+        {
+            return value > 0 && (value & (value - 1)) == 0;
+        }
+
+        private static bool IsBrokenShader(Shader shader)
+        {
+            if (shader == null) return true;
+            string name = shader.name;
+            return name.Contains("InternalErrorShader") || name.Contains("Hidden/InternalError");
+        }
+
+        private HashSet<Texture> CollectAvatarTextures()
+        {
+            var textures = new HashSet<Texture>();
+            foreach (var r in targetAvatar.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null) continue;
+                foreach (var mat in r.sharedMaterials)
+                    CollectMaterialTextures(mat, textures);
+            }
+            return textures;
+        }
+
         #endregion
 
         #region Logic Implementation
@@ -581,6 +848,7 @@ namespace XVR.Tools
             int materials = CleanMissingMaterials();
             int bounds = FixMeshBounds();
             int audio = FixAudioSources();
+            int mipmaps = FixTextureMipmaps();
             bool viewAligned = AutoAlignViewPosition(silent: true);
             bool lipSync = AutoSetupLipSync(silent: true);
             MarkSceneDirty();
@@ -589,6 +857,7 @@ namespace XVR.Tools
                              $"Fixed {materials} missing material slot(s)\n" +
                              $"Fixed bounds on {bounds} skinned mesh(es)\n" +
                              $"Fixed {audio} audio source(s)\n" +
+                             $"Enabled mipmaps on {mipmaps} texture(s)\n" +
                              $"View position: {(viewAligned ? "aligned" : "skipped")}\n" +
                              $"Lip sync: {(lipSync ? "configured" : "skipped")}";
 
@@ -1154,9 +1423,140 @@ namespace XVR.Tools
             return duplicate;
         }
 
+        private int FixTextureMipmaps()
+        {
+            var textures = CollectAvatarTextures();
+            int fixedCount = 0;
+
+            foreach (var tex in textures)
+            {
+                string path = AssetDatabase.GetAssetPath(tex);
+                if (string.IsNullOrEmpty(path)) continue;
+
+                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+                if (importer == null || importer.mipmapEnabled) continue;
+
+                importer.mipmapEnabled = true;
+                importer.SaveAndReimport();
+                fixedCount++;
+            }
+
+            if (fixedCount > 0)
+            {
+                AssetDatabase.SaveAssets();
+                Debug.Log($"[Vtool] Enabled mipmaps on {fixedCount} texture(s).");
+            }
+            return fixedCount;
+        }
+
+        private void CapTextureImportSizes(int maxSize)
+        {
+            if (!EditorUtility.DisplayDialog("Cap Texture Import Sizes",
+                $"This sets Max Size to {maxSize}px in Unity import settings.\n\n" +
+                "Original files are NOT modified. Close-up sharpness may change.\n\nContinue?",
+                "Cap Textures", "Cancel"))
+                return;
+
+            var textures = CollectAvatarTextures();
+            int capped = 0;
+
+            foreach (var tex in textures)
+            {
+                string path = AssetDatabase.GetAssetPath(tex);
+                if (string.IsNullOrEmpty(path)) continue;
+
+                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+                if (importer == null || importer.maxTextureSize <= maxSize) continue;
+
+                importer.maxTextureSize = maxSize;
+                importer.SaveAndReimport();
+                capped++;
+            }
+
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[Vtool] Capped {capped} texture(s) to {maxSize}px import size.");
+            EditorUtility.DisplayDialog("Textures Capped",
+                $"Capped {capped} texture import setting(s) to {maxSize}px.\n\nUse Restore to revert to source resolution.",
+                "OK");
+        }
+
+        private void RestoreTextureImportSizes()
+        {
+            if (!EditorUtility.DisplayDialog("Restore Texture Import Sizes",
+                "This restores each avatar texture's Max Size to match its original source file resolution.\n\nContinue?",
+                "Restore", "Cancel"))
+                return;
+
+            var textures = CollectAvatarTextures();
+            int restored = 0;
+
+            foreach (var tex in textures)
+            {
+                string path = AssetDatabase.GetAssetPath(tex);
+                if (string.IsNullOrEmpty(path)) continue;
+
+                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+                if (importer == null) continue;
+
+                importer.GetSourceTextureWidthAndHeight(out int srcW, out int srcH);
+                int sourceMax = Mathf.Max(srcW, srcH);
+                if (sourceMax <= 0) continue;
+
+                int targetMax = Mathf.Clamp(sourceMax, 32, 8192);
+                if (importer.maxTextureSize == targetMax) continue;
+
+                importer.maxTextureSize = targetMax;
+                importer.SaveAndReimport();
+                restored++;
+            }
+
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[Vtool] Restored import size on {restored} texture(s) to source resolution.");
+            EditorUtility.DisplayDialog("Textures Restored",
+                $"Restored {restored} texture import setting(s) to source file resolution.",
+                "OK");
+        }
+
         #endregion
 
         #region Helpers
+
+        private static string GetVersion()
+        {
+            if (!string.IsNullOrEmpty(cachedVersion))
+                return cachedVersion;
+
+            cachedVersion = FallbackVersion;
+            foreach (var path in new[] { "Packages/com.vtool.autofixer/package.json" })
+            {
+                if (!File.Exists(path)) continue;
+                var match = Regex.Match(File.ReadAllText(path), "\"version\"\\s*:\\s*\"([^\"]+)\"");
+                if (match.Success)
+                {
+                    cachedVersion = match.Groups[1].Value;
+                    break;
+                }
+            }
+
+            var scriptGuids = AssetDatabase.FindAssets("VRCAvatarAutoFixer t:MonoScript");
+            foreach (var guid in scriptGuids)
+            {
+                var scriptPath = AssetDatabase.GUIDToAssetPath(guid);
+                if (!scriptPath.EndsWith("VRCAvatarAutoFixer.cs")) continue;
+
+                var pkgPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(scriptPath) ?? string.Empty, "..", "package.json"));
+                if (!File.Exists(pkgPath)) continue;
+
+                var match = Regex.Match(File.ReadAllText(pkgPath), "\"version\"\\s*:\\s*\"([^\"]+)\"");
+                if (match.Success)
+                {
+                    cachedVersion = match.Groups[1].Value;
+                    break;
+                }
+            }
+
+            return cachedVersion;
+        }
 
         private static bool HasVRCDescriptor(GameObject go)
         {

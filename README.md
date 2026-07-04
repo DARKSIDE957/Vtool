@@ -1,81 +1,73 @@
 # Vtool Avatar Auto-Fixer Pro
 
 > [!WARNING]
-> **Work in Progress:** This tool is under active development. Some features may still evolve with VRChat SDK updates.
+> **Use at your own risk.** Always back up your avatar before using this tool. The developer is **not responsible** if the tool breaks your avatar, removes parts, changes materials, or causes upload failures.
 
-Welcome to the ultimate "A to Z" VRChat Avatar Fixer. This tool automatically diagnoses and fixes the most common Unity errors that prevent avatars from uploading to VRChat or cause issues in-game.
+Welcome to the ultimate "A to Z" VRChat Avatar Fixer. This tool diagnoses and fixes common Unity / VRChat upload errors — with a focus on **safe fixes that do not change how your avatar looks**.
 
 ## Features
 
 ### Diagnostics Dashboard
-- Accurate polygon counting (unique meshes only — no double-counting)
-- Material slots and unique material counts
-- Skinned mesh, bone, PhysBone, contact, and particle system metrics
-- Missing script detection
-- Non-unit scale warnings
-- Legacy Dynamic Bone detection
+- Polygon, mesh, material, bone, PhysBone, contact, and particle metrics
+- **Avatar height** and Quest polygon limit checks
+- **Texture analysis** — 4K/2K counts, estimated VRAM, missing mipmaps, broken shaders
+- Missing scripts, null material slots, non-unit scale warnings
+- Multiple avatars in scene warning
 - Quest shader compatibility check
 - Overall health summary with critical issues and warnings
 
-### 1-Click Master Fix
-Runs safe fixes in one pass:
+### 1-Click Master Fix (Safe / Non-Visual)
+Runs fixes that should **not** change your avatar's appearance:
 - Remove missing scripts
-- Fix missing materials (preserves submesh order — hair and parts stay intact)
+- Fix missing material slots (preserves submesh order — hair stays intact)
 - Fix skinned mesh bounds
 - Fix audio sources (3D spatialization + volume cap)
+- Enable texture mipmaps
 - Auto-align view position
 - Auto-setup viseme lip sync
 
-> Mesh Read/Write and root scale normalization are available as separate buttons and are **not** included in Master Fix.
+> Scale changes, mesh reimports, and texture resolution caps are **separate** and clearly marked.
 
-### Individual Fixes
-- **Missing Scripts & Materials Cleaner** — removes broken script refs; fills missing material slots without breaking hair/clothes submeshes
-- **VRChat Auto-Setup** — aligns View Position and configures viseme lip sync (`vrc.v_*` blendshapes)
-- **Blueprint ID Detach** — clears the blueprint ID for fresh uploads
-- **Prefab Unpack** — fully unpack prefab instances for deep edits
-- **Hierarchy Cleanup** — removes unused empty GameObjects (bones protected)
+### Performance Tab
+- **Cap texture import size** (512 / 1024 / 2048 / 4096) — non-destructive to source files
+- **Restore texture import sizes** from original source resolution
+- Enable mipmaps
+- Prefab unpack and hierarchy cleanup
 
 ### Quest / Android Conversion
 - One-click conversion to `VRChat/Mobile/Toon Lit`
-- Optional material duplication to preserve PC shaders under `Assets/Vtool/QuestMaterials`
+- Optional material duplication under `Assets/Vtool/QuestMaterials`
 
 ---
 
 ## Installation via VRChat Creator Companion (VCC)
 
-This tool is hosted as a VCC Custom Repository. Install and update it directly inside the VRChat Creator Companion.
-
 **Repository URL:**
 `https://raw.githubusercontent.com/DARKSIDE957/Vtool/main/index.json`
 
-### Step-by-Step Installation
-1. Copy the Repository URL above.
-2. Open the **VRChat Creator Companion (VCC)**.
-3. Go to **Settings** (bottom left).
-4. Open the **Packages** tab.
-5. Click **Add Repository**.
-6. Paste the URL and click **Add**.
-7. Go to **Projects** and click **Manage Project** on your avatar project.
-8. Find **Vtool Avatar Auto-Fixer Pro** and click **+** to add it.
+1. Copy the URL above.
+2. Open **VRChat Creator Companion (VCC) → Settings → Packages**.
+3. Click **Add Repository** and paste the URL.
+4. Go to **Projects → Manage Project** on your avatar project.
+5. Add **Vtool Avatar Auto-Fixer Pro**.
 
 ### Updating
-1. Open **VCC → Settings → Packages** and confirm the Vtool repository is added.
-2. Go to **Projects → Manage Project** on your avatar project.
-3. If an update is available, click **Update** next to Vtool Avatar Auto-Fixer Pro.
+1. Confirm the Vtool repository is in **VCC → Settings → Packages**.
+2. Go to **Projects → Manage Project**.
+3. Click **Update** next to Vtool if available.
 
-Current version: **1.1.1**
+Current version: **1.2.0**
 
 ## Usage
 
-Once installed, open your Unity project. The tool is in the top menu:
-
 **`Vtool -> Avatar Auto-Fixer Pro`**
 
-1. Drag your avatar root GameObject into the tool, or click **Auto-Detect Avatar in Scene**.
-2. Review the **Diagnostics** tab for upload blockers and performance warnings.
-3. Use **Backup Avatar** before destructive changes.
-4. Run **Master Fixes** or apply individual fixes as needed.
-5. Use the **Quest/Android** tab for mobile shader conversion before Quest uploads.
+1. Assign your avatar root or click **Auto-Detect Avatar in Scene**.
+2. Read the **disclaimer** and review **Diagnostics**.
+3. Click **Backup Avatar** before any manual or performance changes.
+4. Run **Master Fixes** for safe upload error fixes.
+5. Use **Performance** for texture import settings (cap or restore).
+6. Use **Quest/Android** before Quest uploads.
 
 ## Requirements
 
@@ -84,36 +76,37 @@ Once installed, open your Unity project. The tool is in the top menu:
 
 ## Changelog
 
+### 1.2.0
+
+**Added**
+- Version number shown in the tool UI
+- Liability disclaimer in the tool window
+- Redesigned UI with clearer sections
+- Texture and memory diagnostics (4K, 2K, VRAM estimate, mipmaps, broken shaders)
+- Avatar height and Quest polygon limit checks
+- Multiple avatars in scene warning
+- Performance tab with texture cap and restore (non-destructive to source files)
+- Mipmap fix in Master Fix
+- Safe vs manual fix categories in Auto-Fixes tab
+
+**Fixed**
+- Master Fix clearly separated from visual-changing operations
+- Texture tools restore import sizes back to source file resolution
+
 ### 1.1.1
 
 **Fixed**
-- Master Fix removing hair and avatar parts by deleting null material slots
-- Material slots now stay in the same order so submeshes (hair, body, clothes) stay mapped correctly
-- Mesh Read/Write and root scale normalization removed from Master Fix to prevent accidental model changes
+- Master Fix removing hair by deleting null material slots
+- Material slots preserve submesh order
+- Mesh Read/Write and scale removed from Master Fix
 
 ### 1.1.0
 
 **Added**
-- Full diagnostics dashboard with health summary
-- Unique material, PhysBone, contact, and particle metrics
-- Missing script and non-unit scale detection
-- Legacy Dynamic Bone warning
-- Quest shader compatibility check
-- Complete lip sync setup (viseme mesh, blendshapes, and mode)
-- View position head-bone fallback
-- Quest material duplication option
-- Confirmation dialogs for destructive actions
-- Master fix summary after running all fixes
+- Full diagnostics dashboard, lip sync setup, Quest material duplication, confirmation dialogs
 
 **Fixed**
-- Polygon double-counting on shared meshes
-- Lip sync only assigning the mesh, not the blendshapes
-- VRChat reflection failing on some SDK field types
-- Skinned mesh bounds using a fixed 3x3x3 size
-- Quest conversion overwriting PC materials without a backup option
-- Empty GameObject cleanup not supporting undo
-- Scene not saving after fixes
-- Deprecated FindObjectsOfType API on Unity 2022.3+
+- Polygon double-counting, lip sync blendshapes, bounds, undo, scene dirty marking
 
 ### 1.0.0
 - Initial release
