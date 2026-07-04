@@ -11,3 +11,4 @@ UserSettings/
 *.csproj
 *.sln
 .netlify/
+dist/
