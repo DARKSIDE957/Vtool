@@ -15,11 +15,11 @@ namespace XVR.Tools
         private int tabIndex = 0;
         private readonly string[] tabs = { "Diagnostics", "Auto-Fixes", "Optimizations", "Quest/Android" };
 
-        [MenuItem("VRChat/Avatar Auto-Fixer")]
+        [MenuItem("VRChat/Avatar Auto-Fixer Pro")]
         public static void ShowWindow()
         {
             var window = GetWindow<VRCAvatarAutoFixer>("VRC Auto-Fixer");
-            window.minSize = new Vector2(400, 600);
+            window.minSize = new Vector2(420, 650);
             window.Show();
         }
 
@@ -121,6 +121,13 @@ namespace XVR.Tools
 
             if (materialCount > 16) EditorGUILayout.HelpBox("High material count detected. Consider atlasing.", MessageType.Warning);
 
+            // Animator Controller Check
+            var anim = targetAvatar.GetComponent<Animator>();
+            if (anim != null && anim.runtimeAnimatorController == null)
+            {
+                EditorGUILayout.HelpBox("Animator has no controller assigned! This may cause a T-Pose in VRChat.", MessageType.Warning);
+            }
+
             EditorGUILayout.EndVertical();
         }
 
@@ -128,7 +135,7 @@ namespace XVR.Tools
         {
             EditorGUILayout.BeginVertical(boxStyle);
             GUILayout.Label("1-Click Master Fix", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Runs all essential fixes automatically.", MessageType.Info);
+            EditorGUILayout.HelpBox("Runs all safe, essential fixes automatically.", MessageType.Info);
             GUI.backgroundColor = new Color(0.2f, 0.8f, 0.2f);
             if (GUILayout.Button("RUN ALL MASTER FIXES", GUILayout.Height(40))) RunAllFixes();
             GUI.backgroundColor = Color.white;
@@ -137,6 +144,7 @@ namespace XVR.Tools
             EditorGUILayout.BeginVertical(boxStyle);
             GUILayout.Label("Individual Fixes", EditorStyles.boldLabel);
             if (GUILayout.Button("Remove Missing Scripts")) RemoveMissingScripts();
+            if (GUILayout.Button("Clean Missing Materials")) CleanMissingMaterials();
             if (GUILayout.Button("Fix Skinned Mesh Bounds")) FixMeshBounds();
             if (GUILayout.Button("Fix Audio Sources (Spatial Blend)")) FixAudioSources();
             if (GUILayout.Button("Fix Mesh Read/Write")) FixMeshReadWrite();
@@ -154,8 +162,17 @@ namespace XVR.Tools
         private void DrawOptimizationsTab()
         {
             EditorGUILayout.BeginVertical(boxStyle);
+            GUILayout.Label("Prefab Utilities", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("Unpacking a prefab completely disconnects it from the original file. This is often required before making deep structural changes.", MessageType.Info);
+            if (GUILayout.Button("Unpack Prefab Completely", GUILayout.Height(30)))
+            {
+                UnpackPrefab();
+            }
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.BeginVertical(boxStyle);
             GUILayout.Label("Hierarchy Cleanup", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Removes empty GameObjects that are NOT bones. Warning: Backup your avatar first if you use complex constraints!", MessageType.Warning);
+            EditorGUILayout.HelpBox("Removes empty GameObjects that are NOT bones. Warning: Backup your avatar first if you use complex constraints targeting empty objects!", MessageType.Warning);
             
             if (GUILayout.Button("Remove Unused Empty GameObjects", GUILayout.Height(30)))
             {
@@ -187,12 +204,26 @@ namespace XVR.Tools
         {
             Undo.RegisterFullObjectHierarchyUndo(targetAvatar, "Run All Auto-Fixes");
             RemoveMissingScripts();
+            CleanMissingMaterials();
             FixMeshBounds();
             FixAudioSources();
             FixMeshReadWrite();
             NormalizeScale();
             AutoAlignViewPosition();
-            EditorUtility.DisplayDialog("Auto-Fix Complete", "Master fixes have been applied.", "OK");
+            EditorUtility.DisplayDialog("Auto-Fix Complete", "Master fixes have been successfully applied to your avatar.", "OK");
+        }
+
+        private void UnpackPrefab()
+        {
+            if (PrefabUtility.IsPartOfAnyPrefab(targetAvatar))
+            {
+                PrefabUtility.UnpackPrefabInstance(targetAvatar, PrefabUnpackMode.Completely, InteractionMode.UserAction);
+                Debug.Log("[Auto-Fixer] Prefab unpacked completely.");
+            }
+            else
+            {
+                Debug.Log("[Auto-Fixer] Target is not a prefab instance.");
+            }
         }
 
         private void RemoveMissingScripts()
@@ -201,6 +232,39 @@ namespace XVR.Tools
             var allObjects = targetAvatar.GetComponentsInChildren<Transform>(true).Select(t => t.gameObject).ToArray();
             foreach (var go in allObjects) count += GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
             Debug.Log($"[Auto-Fixer] Removed {count} missing scripts.");
+        }
+
+        private void CleanMissingMaterials()
+        {
+            var renderers = targetAvatar.GetComponentsInChildren<Renderer>(true);
+            int cleanedSlots = 0;
+            
+            Undo.RecordObjects(renderers, "Clean Missing Materials");
+            foreach (var r in renderers)
+            {
+                var mats = r.sharedMaterials;
+                bool needsUpdate = false;
+                
+                var newMats = new List<Material>();
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    if (mats[i] != null)
+                    {
+                        newMats.Add(mats[i]);
+                    }
+                    else
+                    {
+                        needsUpdate = true;
+                        cleanedSlots++;
+                    }
+                }
+                
+                if (needsUpdate)
+                {
+                    r.sharedMaterials = newMats.ToArray();
+                }
+            }
+            Debug.Log($"[Auto-Fixer] Cleaned up {cleanedSlots} missing/null material slots.");
         }
 
         private void FixMeshBounds()
@@ -333,7 +397,7 @@ namespace XVR.Tools
             {
                 visemeMeshField.SetValue(descriptor, bodyMesh);
                 EditorUtility.SetDirty(descriptor);
-                Debug.Log("[Auto-Fixer] Assigned Viseme Skinned Mesh! (Note: Mode and blendshape mapping may still need manual tuning depending on SDK version).");
+                Debug.Log("[Auto-Fixer] Assigned Viseme Skinned Mesh!");
             }
         }
 
