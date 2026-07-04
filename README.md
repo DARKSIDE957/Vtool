@@ -18,18 +18,18 @@ Welcome to the ultimate "A to Z" VRChat Avatar Fixer. This tool automatically di
 - Overall health summary with critical issues and warnings
 
 ### 1-Click Master Fix
-Runs a suite of safe, essential fixes in one pass:
+Runs safe fixes in one pass:
 - Remove missing scripts
-- Clean missing materials
+- Fix missing materials (preserves submesh order — hair and parts stay intact)
 - Fix skinned mesh bounds
 - Fix audio sources (3D spatialization + volume cap)
-- Enable mesh Read/Write where needed
-- Normalize root scale
 - Auto-align view position
 - Auto-setup viseme lip sync
 
+> Mesh Read/Write and root scale normalization are available as separate buttons and are **not** included in Master Fix.
+
 ### Individual Fixes
-- **Missing Scripts & Materials Cleaner** — strips broken references that block builds
+- **Missing Scripts & Materials Cleaner** — removes broken script refs; fills missing material slots without breaking hair/clothes submeshes
 - **VRChat Auto-Setup** — aligns View Position and configures viseme lip sync (`vrc.v_*` blendshapes)
 - **Blueprint ID Detach** — clears the blueprint ID for fresh uploads
 - **Prefab Unpack** — fully unpack prefab instances for deep edits
@@ -57,6 +57,13 @@ This tool is hosted as a VCC Custom Repository. Install and update it directly i
 6. Paste the URL and click **Add**.
 7. Go to **Projects** and click **Manage Project** on your avatar project.
 8. Find **Vtool Avatar Auto-Fixer Pro** and click **+** to add it.
+
+### Updating
+1. Open **VCC → Settings → Packages** and confirm the Vtool repository is added.
+2. Go to **Projects → Manage Project** on your avatar project.
+3. If an update is available, click **Update** next to Vtool Avatar Auto-Fixer Pro.
+
+Current version: **1.1.1**
 
 ## Usage
 
