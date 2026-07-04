@@ -14,20 +14,19 @@ Welcome to the ultimate "A to Z" VRChat Avatar Fixer. This tool automatically di
 
 ## Installation via VRChat Creator Companion (VCC)
 
-To use this tool, you can easily install it into your Unity projects using the VCC Local Packages feature.
+This tool is hosted as a VCC Custom Repository! You can easily install and update it directly inside the VRChat Creator Companion.
 
 **The Repository URL:**
-`https://github.com/DARKSIDE957/Vtool`
+`https://darkside957.github.io/Vtool/index.json`
 
 ### Step-by-Step Installation:
-1. Download or clone this repository to a folder on your computer. 
-2. Open the **VRChat Creator Companion**.
-3. Go to the **Projects** tab on the left.
-4. Click **Manage Project** on the avatar project where you want to install Vtool.
-5. In the top right corner of the package list, click the small **dropdown arrow** next to the `+` button.
-6. Select **Add Local Package**.
-7. In the file explorer, navigate to the folder where you saved this repository and select it.
-8. The package will instantly be added to your project!
+1. Open the **VRChat Creator Companion**.
+2. Go to the **Settings** menu on the bottom left.
+3. Click on the **Packages** tab at the top.
+4. Click the **Add Repository** button.
+5. Paste the link above (`https://darkside957.github.io/Vtool/index.json`) and click **Add**.
+6. Now, go to your **Projects** tab and click **Manage Project** on your avatar project.
+7. Scroll down to "Vtool Avatar Auto-Fixer Pro" in the package list and click the **+ (Plus)** button to add it!
 
 ## Usage
 Once installed, open your Unity project. You will find the tool at the top of the screen:
