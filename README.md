@@ -78,14 +78,28 @@ Once installed, open your Unity project. The tool is in the top menu:
 ## Changelog
 
 ### 1.1.0
-- Full diagnostics overhaul with overall health summary
-- Fixed polygon double-counting across shared meshes
-- Complete lip sync setup (viseme mesh, blendshape mapping, lip sync mode)
-- Improved view position alignment with head-bone fallback
-- Quest conversion with optional material duplication
-- Undo support for hierarchy cleanup
-- Confirmation dialogs for destructive operations
-- Scene dirty marking after all fixes
+
+**Added**
+- Full diagnostics dashboard with health summary
+- Unique material, PhysBone, contact, and particle metrics
+- Missing script and non-unit scale detection
+- Legacy Dynamic Bone warning
+- Quest shader compatibility check
+- Complete lip sync setup (viseme mesh, blendshapes, and mode)
+- View position head-bone fallback
+- Quest material duplication option
+- Confirmation dialogs for destructive actions
+- Master fix summary after running all fixes
+
+**Fixed**
+- Polygon double-counting on shared meshes
+- Lip sync only assigning the mesh, not the blendshapes
+- VRChat reflection failing on some SDK field types
+- Skinned mesh bounds using a fixed 3x3x3 size
+- Quest conversion overwriting PC materials without a backup option
+- Empty GameObject cleanup not supporting undo
+- Scene not saving after fixes
+- Deprecated FindObjectsOfType API on Unity 2022.3+
 
 ### 1.0.0
 - Initial release
