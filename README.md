@@ -20,7 +20,7 @@ To use this tool, you can easily install it into your Unity projects using the V
 `https://github.com/DARKSIDE957/Vtool`
 
 ### Step-by-Step Installation:
-1. Since this is a private GitHub repository, you will first need to download this repository to a folder on your computer (if you haven't already). 
+1. Download or clone this repository to a folder on your computer. 
 2. Open the **VRChat Creator Companion**.
 3. Go to the **Projects** tab on the left.
 4. Click **Manage Project** on the avatar project where you want to install Vtool.
