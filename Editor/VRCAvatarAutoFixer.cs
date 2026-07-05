@@ -12,1569 +12,758 @@ namespace XVR.Tools
 {
     public class VRCAvatarAutoFixer : EditorWindow
     {
-        private const string FallbackVersion = "1.2.0";
-        private const int RecommendedTextureMax = 2048;
-        private const int QuestPolyLimit = 20000;
-        private const float MinAvatarHeight = 0.3f;
-        private const float MaxAvatarHeight = 5f;
+        private const string FallbackVersion = "2.0.0";
 
         private GameObject targetAvatar;
         private Vector2 scrollPos;
-        private GUIStyle headerStyle;
-        private GUIStyle subHeaderStyle;
-        private GUIStyle versionStyle;
-        private GUIStyle boxStyle;
-        private GUIStyle cardStyle;
-        private GUIStyle sectionStyle;
-        private GUIStyle warningStyle;
-        private GUIStyle successStyle;
-        private GUIStyle errorStyle;
-        private int tabIndex;
         private int textureCapSize = 2048;
-        private bool stylesInitialized;
+        private bool showIndividualFixes;
+        private Material placeholderMaterial;
+
+        private GUIStyle headerStyle;
+        private GUIStyle subStyle;
+        private GUIStyle versionStyle;
+        private GUIStyle panelStyle;
+        private GUIStyle okStyle;
+        private GUIStyle warnStyle;
+        private GUIStyle errStyle;
+        private bool stylesReady;
         private static string cachedVersion;
-        private readonly string[] tabs = { "Diagnostics", "Auto-Fixes", "Performance", "Quest/Android" };
 
-        private Material _placeholderMaterial;
-
-        private static readonly string[] StandardVisemeSuffixes =
+        private static readonly string[] VisemeSuffixes =
         {
             "sil", "pp", "ff", "th", "dd", "kk", "ch", "ss", "nn", "rr", "aa", "e", "ih", "oh", "ou"
         };
 
-        private static readonly string[] QuestShaderNames =
-        {
-            "VRChat/Mobile/Toon Lit",
-            "VRChat/Mobile/Standard Lite",
-            "VRChat/Mobile/Diffuse"
-        };
+        private static readonly string[] TextureCapOptions = { "512", "1024", "2048 (VRChat max)" };
 
         [MenuItem("Vtool/Avatar Auto-Fixer Pro")]
         public static void ShowWindow()
         {
-            var window = GetWindow<VRCAvatarAutoFixer>("VRC Auto-Fixer");
-            window.minSize = new Vector2(500, 760);
-            window.Show();
+            var w = GetWindow<VRCAvatarAutoFixer>("Vtool Pre-Upload");
+            w.minSize = new Vector2(440, 680);
+            w.Show();
         }
 
-        private void OnEnable()
-        {
-            AutoDetectAvatar();
-        }
+        private void OnEnable() => AutoDetectAvatar();
+        private void OnSelectionChange() { if (targetAvatar == null) Repaint(); }
 
-        private void OnSelectionChange()
-        {
-            if (targetAvatar == null && Selection.activeGameObject != null)
-                Repaint();
-        }
+        #region UI
 
-        private void AutoDetectAvatar()
+        private void OnGUI()
         {
-            if (targetAvatar != null) return;
+            InitStyles();
+            scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
 
-            if (Selection.activeGameObject != null && HasVRCDescriptor(Selection.activeGameObject))
+            DrawHeader();
+            DrawDisclaimer();
+            DrawAvatarPicker();
+
+            if (targetAvatar == null)
             {
-                targetAvatar = Selection.activeGameObject;
+                EditorGUILayout.EndScrollView();
                 return;
             }
 
-            var descriptorType = GetVRCDescriptorType();
-            if (descriptorType == null) return;
+            var report = BuildUploadReport();
 
-            var descriptors = FindObjectsCompat(descriptorType);
-            if (descriptors.Length > 0)
-                targetAvatar = ((Component)descriptors[0]).gameObject;
+            DrawUploadStatus(report);
+            DrawFixSection(report);
+            DrawTextureSection(report);
+
+            EditorGUILayout.EndScrollView();
         }
 
         private void InitStyles()
         {
-            if (stylesInitialized) return;
-            stylesInitialized = true;
+            if (stylesReady) return;
+            stylesReady = true;
 
-            headerStyle = new GUIStyle(EditorStyles.boldLabel)
-            {
-                fontSize = 20,
-                alignment = TextAnchor.MiddleLeft,
-                margin = new RectOffset(4, 4, 4, 0)
-            };
-
-            subHeaderStyle = new GUIStyle(EditorStyles.miniLabel)
-            {
-                alignment = TextAnchor.MiddleLeft,
-                normal = { textColor = new Color(0.7f, 0.7f, 0.7f) },
-                margin = new RectOffset(4, 4, 0, 4)
-            };
-
+            headerStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 19, margin = new RectOffset(4, 4, 2, 0) };
+            subStyle = new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = new Color(0.68f, 0.68f, 0.68f) } };
             versionStyle = new GUIStyle(EditorStyles.miniLabel)
             {
                 alignment = TextAnchor.MiddleRight,
                 fontStyle = FontStyle.Bold,
-                normal = { textColor = new Color(0.85f, 0.25f, 0.3f) }
+                normal = { textColor = new Color(0.82f, 0.22f, 0.28f) }
             };
-
-            boxStyle = new GUIStyle(GUI.skin.box)
-            {
-                padding = new RectOffset(14, 14, 12, 12),
-                margin = new RectOffset(8, 8, 6, 6)
-            };
-
-            cardStyle = new GUIStyle(GUI.skin.box)
-            {
-                padding = new RectOffset(12, 12, 10, 10),
-                margin = new RectOffset(8, 8, 4, 4)
-            };
-
-            sectionStyle = new GUIStyle(EditorStyles.boldLabel)
-            {
-                fontSize = 12,
-                margin = new RectOffset(0, 0, 6, 4)
-            };
-
-            warningStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(1f, 0.6f, 0f) }, fontStyle = FontStyle.Bold };
-            successStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.2f, 0.85f, 0.35f) }, fontStyle = FontStyle.Bold };
-            errorStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.95f, 0.25f, 0.25f) }, fontStyle = FontStyle.Bold };
+            panelStyle = new GUIStyle(GUI.skin.box) { padding = new RectOffset(14, 14, 12, 12), margin = new RectOffset(6, 6, 5, 5) };
+            okStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.25f, 0.82f, 0.4f) }, fontStyle = FontStyle.Bold };
+            warnStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(1f, 0.62f, 0.1f) }, fontStyle = FontStyle.Bold };
+            errStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.95f, 0.28f, 0.28f) }, fontStyle = FontStyle.Bold };
         }
 
         private void DrawHeader()
         {
-            EditorGUILayout.BeginVertical(boxStyle);
+            EditorGUILayout.BeginVertical(panelStyle);
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.BeginVertical();
-            GUILayout.Label("Vtool Avatar Auto-Fixer Pro", headerStyle);
-            GUILayout.Label("Diagnose and fix VRChat upload errors without breaking your avatar", subHeaderStyle);
+            GUILayout.Label("Vtool Pre-Upload Fixer", headerStyle);
+            GUILayout.Label("Fix upload errors  •  Reduce texture size", subStyle);
             EditorGUILayout.EndVertical();
             GUILayout.FlexibleSpace();
-            GUILayout.Label("v" + GetVersion(), versionStyle, GUILayout.Width(72));
+            GUILayout.Label("v" + GetVersion(), versionStyle, GUILayout.Width(56));
             EditorGUILayout.EndHorizontal();
-
-            var accentRect = GUILayoutUtility.GetRect(0, 2, GUILayout.ExpandWidth(true));
-            EditorGUI.DrawRect(accentRect, new Color(0.75f, 0.15f, 0.2f));
+            var line = GUILayoutUtility.GetRect(0, 2, GUILayout.ExpandWidth(true));
+            EditorGUI.DrawRect(line, new Color(0.72f, 0.14f, 0.2f));
             EditorGUILayout.EndVertical();
         }
 
         private void DrawDisclaimer()
         {
             EditorGUILayout.HelpBox(
-                "DISCLAIMER: Always back up your avatar before using this tool. " +
-                "The developer (DARKSIDE957) is NOT responsible if this tool breaks your avatar, " +
-                "removes parts, changes materials, or causes upload failures. Use at your own risk.",
+                "DISCLAIMER: Back up your avatar first. DARKSIDE957 is NOT responsible if this tool breaks your avatar or causes upload failures. Use at your own risk.",
                 MessageType.Warning);
         }
 
-        private void OnGUI()
+        private void DrawAvatarPicker()
         {
-            InitStyles();
-            DrawHeader();
-            DrawDisclaimer();
-
-            EditorGUILayout.BeginVertical(cardStyle);
+            EditorGUILayout.BeginVertical(panelStyle);
             EditorGUILayout.BeginHorizontal();
-            var newTarget = (GameObject)EditorGUILayout.ObjectField("Avatar Root", targetAvatar, typeof(GameObject), true);
-            if (newTarget != targetAvatar)
-            {
-                targetAvatar = newTarget;
-                GUI.FocusControl(null);
-            }
-
-            if (GUILayout.Button("Refresh", GUILayout.Width(64)))
-                Repaint();
-
-            if (targetAvatar == null && Selection.activeGameObject != null)
-            {
-                if (GUILayout.Button("Use Selected", GUILayout.Width(100)))
-                    targetAvatar = Selection.activeGameObject;
-            }
+            targetAvatar = (GameObject)EditorGUILayout.ObjectField("Avatar Root", targetAvatar, typeof(GameObject), true);
+            if (targetAvatar == null && Selection.activeGameObject != null && GUILayout.Button("Use Selected", GUILayout.Width(96)))
+                targetAvatar = Selection.activeGameObject;
             EditorGUILayout.EndHorizontal();
+
+            if (targetAvatar == null && GUILayout.Button("Auto-Detect Avatar in Scene", GUILayout.Height(28)))
+            {
+                AutoDetectAvatar();
+                if (targetAvatar == null)
+                    Debug.LogWarning("[Vtool] No VRCAvatarDescriptor found in scene.");
+            }
             EditorGUILayout.EndVertical();
-
-            if (targetAvatar == null)
-            {
-                EditorGUILayout.HelpBox("Select your avatar root GameObject to unlock features.", MessageType.Info);
-                if (GUILayout.Button("Auto-Detect Avatar in Scene", GUILayout.Height(30)))
-                {
-                    AutoDetectAvatar();
-                    if (targetAvatar == null)
-                        Debug.LogWarning("[Vtool] No avatar with a VRCAvatarDescriptor was found in the active scene.");
-                }
-                return;
-            }
-
-            GUILayout.Space(5);
-            tabIndex = GUILayout.Toolbar(tabIndex, tabs, GUILayout.Height(30));
-            GUILayout.Space(5);
-
-            scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
-
-            switch (tabIndex)
-            {
-                case 0: DrawDiagnosticsTab(); break;
-                case 1: DrawAutoFixesTab(); break;
-                case 2: DrawPerformanceTab(); break;
-                case 3: DrawQuestTab(); break;
-            }
-
-            EditorGUILayout.EndScrollView();
         }
 
-        #region UI Tabs
-
-        private void DrawDiagnosticsTab()
+        private void DrawUploadStatus(UploadReport report)
         {
-            var stats = GatherDiagnostics();
+            EditorGUILayout.BeginVertical(panelStyle);
+            GUILayout.Label("Pre-Upload Check", EditorStyles.boldLabel);
+            EditorGUILayout.Space(4);
 
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Overall Status", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox(stats.OverallSummary, stats.CriticalIssues > 0 ? MessageType.Error : (stats.WarningIssues > 0 ? MessageType.Warning : MessageType.Info));
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Performance Metrics", EditorStyles.boldLabel);
-            EditorGUILayout.Space();
-
-            DrawStat("Polygons (Triangles):", stats.PolyCount.ToString("N0"), GetPolyStyle(stats.PolyCount));
-            DrawStat("Skinned Meshes:", stats.SkinnedMeshCount.ToString(), stats.SkinnedMeshCount > 16 ? errorStyle : (stats.SkinnedMeshCount > 8 ? warningStyle : successStyle));
-            DrawStat("Material Slots:", stats.MaterialSlotCount.ToString(), stats.MaterialSlotCount > 24 ? errorStyle : (stats.MaterialSlotCount > 16 ? warningStyle : successStyle));
-            DrawStat("Unique Materials:", stats.UniqueMaterialCount.ToString(), stats.UniqueMaterialCount > 16 ? errorStyle : (stats.UniqueMaterialCount > 8 ? warningStyle : successStyle));
-            DrawStat("Mesh Renderers:", stats.MeshRendererCount.ToString(), EditorStyles.label);
-            DrawStat("Bones:", stats.BoneCount.ToString(), stats.BoneCount > 256 ? warningStyle : EditorStyles.label);
-            DrawStat("Avatar Height:", $"{stats.AvatarHeightMeters:F2} m", GetHeightStyle(stats.AvatarHeightMeters));
-            DrawStat("Quest Poly Limit:", stats.PolyCount > QuestPolyLimit ? "Exceeded" : "OK", stats.PolyCount > QuestPolyLimit ? errorStyle : successStyle);
-
-            EditorGUILayout.Space();
-            if (stats.PolyCount > 100000)
-                EditorGUILayout.HelpBox("Polygon count exceeds 100,000 (Very Poor on PC).", MessageType.Error);
-            else if (stats.PolyCount > 70000)
-                EditorGUILayout.HelpBox("Polygon count exceeds 70,000 (Poor on PC).", MessageType.Warning);
-            else if (stats.PolyCount > 32000)
-                EditorGUILayout.HelpBox("Polygon count is in the Medium range for PC.", MessageType.Info);
+            if (report.Blockers.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No upload blockers found. Review warnings below, then upload via VRChat SDK.", MessageType.Info);
+            }
             else
-                EditorGUILayout.HelpBox("Polygon count is Excellent/Good for PC.", MessageType.Info);
-
-            if (stats.MaterialSlotCount > 16)
-                EditorGUILayout.HelpBox("High material slot count. Consider atlasing or merging materials.", MessageType.Warning);
-
-            if (stats.LargeTextureCount > 0)
-                EditorGUILayout.HelpBox($"Detected {stats.LargeTextureCount} unique texture(s) larger than 2K. VRChat recommends 2K max to avoid security check failures.", MessageType.Warning);
-
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Textures & Memory", sectionStyle);
-            EditorGUILayout.Space();
-
-            DrawStat("Unique Textures:", stats.TextureCount.ToString(), EditorStyles.label);
-            DrawStat("4K+ Textures:", stats.Texture4KCount.ToString(), stats.Texture4KCount > 0 ? errorStyle : successStyle);
-            DrawStat("Over 2K Textures:", stats.TextureOver2KCount.ToString(), stats.TextureOver2KCount > 0 ? warningStyle : successStyle);
-            DrawStat("Est. Texture Memory:", $"~{stats.EstimatedTextureMemoryMB:F0} MB", stats.EstimatedTextureMemoryMB > 150 ? errorStyle : (stats.EstimatedTextureMemoryMB > 75 ? warningStyle : successStyle));
-            DrawStat("Missing Mipmaps:", stats.TexturesWithoutMipmaps.ToString(), stats.TexturesWithoutMipmaps > 0 ? warningStyle : successStyle);
-            DrawStat("Non-Power-of-Two:", stats.NonPowerOfTwoTextures.ToString(), stats.NonPowerOfTwoTextures > 0 ? warningStyle : successStyle);
-            DrawStat("Broken Shaders:", stats.BrokenShaderCount.ToString(), stats.BrokenShaderCount > 0 ? errorStyle : successStyle);
-            DrawStat("Null Material Slots:", stats.NullMaterialSlots.ToString(), stats.NullMaterialSlots > 0 ? errorStyle : successStyle);
-
-            if (stats.Texture4KCount > 0)
-                EditorGUILayout.HelpBox("4K+ textures increase download size and VRAM. Use Performance tab to cap import size (non-destructive — can be restored).", MessageType.Warning);
-
-            if (stats.EstimatedTextureMemoryMB > 150)
-                EditorGUILayout.HelpBox("Estimated texture memory is very high. This can cause Security Checks Failed on upload.", MessageType.Error);
-
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Upload Blockers", sectionStyle);
-            EditorGUILayout.Space();
-
-            DrawStat("VRC Avatar Descriptor:", stats.HasDescriptor ? "Present" : "Missing", stats.HasDescriptor ? successStyle : errorStyle);
-            DrawStat("Humanoid Animator:", stats.HasHumanoidAnimator ? "Yes" : "No", stats.HasHumanoidAnimator ? successStyle : errorStyle);
-            DrawStat("Animator Controller:", stats.HasAnimatorController ? "Assigned" : "Missing", stats.HasAnimatorController ? successStyle : errorStyle);
-            DrawStat("View Position:", stats.HasViewPosition ? "Set" : "Not verified", stats.HasViewPosition ? successStyle : warningStyle);
-            DrawStat("Lip Sync (Visemes):", stats.LipSyncConfigured ? "Configured" : "Not configured", stats.LipSyncConfigured ? successStyle : warningStyle);
-            DrawStat("PhysBones:", stats.PhysBoneCount.ToString(), stats.PhysBoneCount > 256 ? warningStyle : EditorStyles.label);
-            DrawStat("Contacts:", stats.ContactCount.ToString(), EditorStyles.label);
-            DrawStat("Particle Systems:", stats.ParticleSystemCount.ToString(), stats.ParticleSystemCount > 16 ? warningStyle : EditorStyles.label);
-            DrawStat("Audio Sources:", stats.AudioSourceCount.ToString(), EditorStyles.label);
-            DrawStat("Missing Scripts:", stats.MissingScriptCount.ToString(), stats.MissingScriptCount > 0 ? errorStyle : successStyle);
-            DrawStat("Non-Unit Scales:", stats.NonUnitScaleCount.ToString(), stats.NonUnitScaleCount > 0 ? warningStyle : successStyle);
-
-            if (stats.LegacyDynamicBoneCount > 0)
-                EditorGUILayout.HelpBox($"Found {stats.LegacyDynamicBoneCount} legacy Dynamic Bone component(s). Migrate to PhysBones for better performance.", MessageType.Warning);
-
-            if (!stats.HasDescriptor)
-                EditorGUILayout.HelpBox("No VRCAvatarDescriptor on the avatar root. Add one from the VRChat SDK.", MessageType.Error);
-
-            if (stats.HasAnimator && !stats.HasAnimatorController)
             {
-                EditorGUILayout.HelpBox("Animator has no controller assigned. This often causes a T-Pose in VRChat.", MessageType.Error);
-                if (GUILayout.Button("Create & Assign Dummy Controller"))
-                    CreateDummyController(targetAvatar.GetComponent<Animator>());
-            }
-            else if (!stats.HasAnimator)
-            {
-                EditorGUILayout.HelpBox("No Animator on the avatar root. VRChat requires a humanoid Animator.", MessageType.Error);
+                EditorGUILayout.HelpBox($"{report.Blockers.Count} blocker(s) must be fixed before upload.", MessageType.Error);
             }
 
-            if (stats.BadAudioCount > 0)
-                EditorGUILayout.HelpBox($"{stats.BadAudioCount} AudioSource(s) have high volume or are not fully 3D spatialized.", MessageType.Warning);
+            foreach (var issue in report.Blockers)
+                DrawIssueRow(issue, true);
+            foreach (var issue in report.Warnings)
+                DrawIssueRow(issue, false);
 
-            if (stats.MissingScriptCount > 0)
-                EditorGUILayout.HelpBox("Missing script references can block uploads. Use Remove Missing Scripts in Auto-Fixes.", MessageType.Error);
+            if (report.Blockers.Count == 0 && report.Warnings.Count == 0)
+                GUILayout.Label("✓  All checks passed", okStyle);
 
-            if (stats.NonUnitScaleCount > 0)
-                EditorGUILayout.HelpBox("Non-unit local scales can cause IK and upload issues. Use Normalize Scale only if you know you need it.", MessageType.Warning);
-
-            if (stats.AvatarHeightMeters > MaxAvatarHeight || stats.AvatarHeightMeters < MinAvatarHeight)
-                EditorGUILayout.HelpBox($"Avatar height ({stats.AvatarHeightMeters:F2}m) is unusual. Expected roughly 1.2m–2.5m for humanoids.", MessageType.Warning);
-
-            if (stats.PolyCount > QuestPolyLimit)
-                EditorGUILayout.HelpBox($"Polygon count exceeds Quest limit ({QuestPolyLimit:N0}). Android/Quest uploads will fail or rank poorly.", MessageType.Warning);
-
-            if (stats.OtherAvatarsInScene > 0)
-                EditorGUILayout.HelpBox($"{stats.OtherAvatarsInScene} other VRCAvatarDescriptor(s) found in scene. Disable them before upload to avoid errors.", MessageType.Warning);
-
-            if (stats.BrokenShaderCount > 0)
-                EditorGUILayout.HelpBox("Broken/missing shaders detected (pink materials). Reassign shaders manually — do not upload with broken shaders.", MessageType.Error);
+            EditorGUILayout.Space(6);
+            DrawStat("Polygons", report.PolyCount.ToString("N0"), report.PolyCount > 70000 ? warnStyle : okStyle);
+            DrawStat("Material slots", report.MaterialSlots.ToString(), report.MaterialSlots > 16 ? warnStyle : EditorStyles.label);
+            DrawStat("Textures", $"{report.TextureCount}  ({report.TexturesOver2K} over 2K)", report.TexturesOver2K > 0 ? warnStyle : okStyle);
+            DrawStat("Est. texture memory", $"~{report.TextureMemoryMB:F0} MB", report.TextureMemoryMB > 100 ? warnStyle : EditorStyles.label);
 
             EditorGUILayout.EndVertical();
-
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("VRChat Components", sectionStyle);
-            EditorGUILayout.Space();
-
-            if (stats.QuestIncompatibleMaterials > 0)
-            {
-                EditorGUILayout.BeginVertical(boxStyle);
-                GUILayout.Label("Quest / Android", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox($"{stats.QuestIncompatibleMaterials} material(s) are not using a Quest-compatible mobile shader. See the Quest/Android tab.", MessageType.Warning);
-                EditorGUILayout.EndVertical();
-            }
         }
 
-        private GUIStyle GetHeightStyle(float height)
-        {
-            if (height > MaxAvatarHeight || height < MinAvatarHeight) return errorStyle;
-            if (height > 2.5f || height < 1.0f) return warningStyle;
-            return successStyle;
-        }
-
-        private GUIStyle GetPolyStyle(int polyCount)
-        {
-            if (polyCount > 100000) return errorStyle;
-            if (polyCount > 70000) return errorStyle;
-            if (polyCount > 32000) return warningStyle;
-            return successStyle;
-        }
-
-        private void DrawStat(string label, string value, GUIStyle style)
+        private void DrawIssueRow(UploadIssue issue, bool isBlocker)
         {
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label(label, GUILayout.Width(160));
-            GUILayout.Label(value, style);
+            GUILayout.Label(isBlocker ? "✗" : "!", isBlocker ? errStyle : warnStyle, GUILayout.Width(14));
+            GUILayout.Label(issue.Message, EditorStyles.wordWrappedLabel);
             EditorGUILayout.EndHorizontal();
         }
 
-        private void DrawAutoFixesTab()
+        private void DrawStat(string label, string value, GUIStyle valueStyle)
         {
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Safety First", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Always back up your avatar before applying destructive fixes.", MessageType.Info);
-            GUI.backgroundColor = new Color(0.2f, 0.6f, 0.9f);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(130));
+            GUILayout.Label(value, valueStyle);
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawFixSection(UploadReport report)
+        {
+            EditorGUILayout.BeginVertical(panelStyle);
+            GUILayout.Label("Fix Upload Errors", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("These fixes do not change textures or how your avatar looks (hair-safe material fix).", MessageType.None);
+
+            GUI.backgroundColor = new Color(0.18f, 0.55f, 0.88f);
             if (GUILayout.Button("Backup Avatar", GUILayout.Height(30)))
                 BackupAvatar();
             GUI.backgroundColor = Color.white;
-            EditorGUILayout.EndVertical();
 
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("1-Click Master Fix (Safe / Non-Visual)", sectionStyle);
-            EditorGUILayout.HelpBox("Only fixes upload errors that do NOT change how your avatar looks: scripts, material slot errors, bounds, audio, mipmaps, view position, and lip sync.", MessageType.Info);
-            GUI.backgroundColor = new Color(0.2f, 0.8f, 0.2f);
-            if (GUILayout.Button("RUN ALL MASTER FIXES", GUILayout.Height(40)))
-                RunAllFixes();
+            EditorGUILayout.Space(4);
+            GUI.backgroundColor = report.Blockers.Count > 0 ? new Color(0.2f, 0.78f, 0.28f) : new Color(0.35f, 0.65f, 0.4f);
+            if (GUILayout.Button("FIX ALL UPLOAD ERRORS", GUILayout.Height(42)))
+                FixAllUploadErrors();
             GUI.backgroundColor = Color.white;
-            EditorGUILayout.EndVertical();
 
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Safe Individual Fixes", sectionStyle);
-            EditorGUILayout.HelpBox("These should not change your avatar's appearance.", MessageType.Info);
-            if (GUILayout.Button(new GUIContent("Remove Missing Scripts", "Removes broken script references from all GameObjects.")))
-                RemoveMissingScripts();
-            if (GUILayout.Button(new GUIContent("Clean Missing Materials", "Fills null material slots without changing submesh order (prevents hair/parts disappearing).")))
-                CleanMissingMaterials();
-            if (GUILayout.Button(new GUIContent("Fix Skinned Mesh Bounds", "Expands skinned mesh bounds to reduce in-world culling issues.")))
-                FixMeshBounds();
-            if (GUILayout.Button(new GUIContent("Fix Audio Sources (Spatial Blend)", "Forces all audio sources to be 3D spatialized and caps volume.")))
-                FixAudioSources();
-            if (GUILayout.Button(new GUIContent("Enable Texture Mipmaps", "Enables mipmaps on avatar textures for better VRChat performance. Does not change close-up look.")))
-                FixTextureMipmaps();
-            EditorGUILayout.EndVertical();
+            EditorGUILayout.Space(4);
+            showIndividualFixes = EditorGUILayout.Foldout(showIndividualFixes, "Individual fixes", true);
+            if (showIndividualFixes)
+            {
+                EditorGUI.indentLevel++;
+                if (GUILayout.Button("Remove missing scripts")) { UndoAvatar(); RemoveMissingScripts(); Done(); }
+                if (GUILayout.Button("Fix missing material slots")) { UndoAvatar(); CleanMissingMaterials(); Done(); }
+                if (GUILayout.Button("Assign dummy animator controller")) CreateDummyController(targetAvatar.GetComponent<Animator>());
+                if (GUILayout.Button("Fix skinned mesh bounds")) { UndoAvatar(); FixMeshBounds(); Done(); }
+                if (GUILayout.Button("Fix audio (3D + volume)")) { UndoAvatar(); FixAudioSources(); Done(); }
+                if (GUILayout.Button("Align view position")) { UndoAvatar(); AutoAlignViewPosition(); Done(); }
+                if (GUILayout.Button("Setup lip sync")) { UndoAvatar(); AutoSetupLipSync(); Done(); }
+                EditorGUI.indentLevel--;
+            }
 
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Manual Fixes (May Change Appearance)", sectionStyle);
-            EditorGUILayout.HelpBox("These can change how your avatar looks or reimport assets. Back up first.", MessageType.Warning);
-            if (GUILayout.Button(new GUIContent("Fix Mesh Read/Write", "Reimports models — can reset materials on some avatars.")))
-                FixMeshReadWrite();
-            if (GUILayout.Button(new GUIContent("Normalize Root Scale to (1,1,1)", "Changes avatar size/position if root scale was not 1.")))
-                NormalizeScale();
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("VRChat Auto-Setup", sectionStyle);
-            if (GUILayout.Button(new GUIContent("Auto-Align View Position (Eyes)", "Positions the VRC Viewpoint between the avatar's eyes.")))
-                AutoAlignViewPosition();
-            if (GUILayout.Button(new GUIContent("Auto-Setup Lip Sync (Visemes)", "Finds vrc.v_* blendshapes and configures viseme lip sync.")))
-                AutoSetupLipSync();
-            if (GUILayout.Button(new GUIContent("Clear Blueprint ID (Detach)", "Clears the Blueprint ID so you can upload as a new avatar.")))
-                ClearBlueprintID();
             EditorGUILayout.EndVertical();
         }
 
-        private void DrawPerformanceTab()
+        private void DrawTextureSection(UploadReport report)
         {
-            var stats = GatherDiagnostics();
-
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Texture Import Settings", sectionStyle);
+            EditorGUILayout.BeginVertical(panelStyle);
+            GUILayout.Label("Reduce Texture Size", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "These change Unity import settings only — your original texture files are NOT modified. " +
-                "Use Restore to bring import resolution back to the source file size.",
+                "Lowers Unity import Max Size only — your original image files are NOT deleted. " +
+                "Use Restore to put sizes back to the source file resolution.",
                 MessageType.Info);
 
-            DrawStat("4K+ Textures:", stats.Texture4KCount.ToString(), stats.Texture4KCount > 0 ? errorStyle : successStyle);
-            DrawStat("Over 2K:", stats.TextureOver2KCount.ToString(), stats.TextureOver2KCount > 0 ? warningStyle : successStyle);
-            DrawStat("Est. VRAM:", $"~{stats.EstimatedTextureMemoryMB:F0} MB", stats.EstimatedTextureMemoryMB > 150 ? errorStyle : EditorStyles.label);
+            DrawStat("Textures on avatar", report.TextureCount.ToString(), EditorStyles.label);
+            DrawStat("4K textures", report.Textures4K.ToString(), report.Textures4K > 0 ? errStyle : okStyle);
+            DrawStat("Over 2K", report.TexturesOver2K.ToString(), report.TexturesOver2K > 0 ? warnStyle : okStyle);
+            DrawStat("Memory (estimate)", $"~{report.TextureMemoryMB:F0} MB", report.TextureMemoryMB > 100 ? warnStyle : EditorStyles.label);
 
-            EditorGUILayout.Space();
-            textureCapSize = EditorGUILayout.IntPopup("Cap Max Size To", textureCapSize,
-                new[] { "512", "1024", "2048 (Recommended)", "4096" },
-                new[] { 512, 1024, 2048, 4096 });
+            EditorGUILayout.Space(6);
+            textureCapSize = EditorGUILayout.IntPopup("Cap import size to", textureCapSize, TextureCapOptions, new[] { 512, 1024, 2048 });
 
-            GUI.backgroundColor = new Color(0.2f, 0.6f, 0.9f);
-            if (GUILayout.Button($"Cap Avatar Textures to {textureCapSize}px (Import Settings)", GUILayout.Height(32)))
-                CapTextureImportSizes(textureCapSize);
+            GUI.backgroundColor = new Color(0.72f, 0.14f, 0.2f);
+            if (GUILayout.Button($"REDUCE TEXTURES TO {textureCapSize}px", GUILayout.Height(38)))
+                CapTextures(textureCapSize);
             GUI.backgroundColor = Color.white;
 
-            if (GUILayout.Button("Restore Texture Import Sizes (From Source Files)", GUILayout.Height(32)))
-                RestoreTextureImportSizes();
+            if (GUILayout.Button("Restore Original Texture Sizes", GUILayout.Height(30)))
+                RestoreTextures();
 
-            if (GUILayout.Button("Enable Mipmaps on Avatar Textures", GUILayout.Height(28)))
-                FixTextureMipmaps();
-
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Prefab Utilities", sectionStyle);
-            EditorGUILayout.HelpBox("Unpacking disconnects the prefab from its source file for deep edits.", MessageType.Info);
-            if (GUILayout.Button("Unpack Prefab Completely", GUILayout.Height(28)))
-                UnpackPrefab();
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Hierarchy Cleanup", sectionStyle);
-            EditorGUILayout.HelpBox("Removes empty GameObjects that are NOT bones. Can break constraints — back up first.", MessageType.Warning);
-            if (GUILayout.Button("Remove Unused Empty GameObjects", GUILayout.Height(28)))
+            if (GUILayout.Button("Enable Mipmaps (performance)", GUILayout.Height(26)))
             {
-                if (EditorUtility.DisplayDialog("Remove Empty GameObjects",
-                    "This removes empty objects not part of the avatar rig. Continue?",
-                    "Remove", "Cancel"))
-                    CleanupEmptyGameObjects();
+                UndoAvatar();
+                int n = FixTextureMipmaps();
+                Done($"Enabled mipmaps on {n} texture(s).");
             }
-            EditorGUILayout.EndVertical();
-        }
 
-        private void DrawQuestTab()
-        {
-            var stats = GatherDiagnostics();
-
-            EditorGUILayout.BeginVertical(boxStyle);
-            GUILayout.Label("Quest / Android Conversion", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("VRChat on Quest/Android requires mobile shaders. This converts avatar materials to 'VRChat/Mobile/Toon Lit'.", MessageType.Warning);
-
-            if (stats.QuestIncompatibleMaterials == 0)
-                EditorGUILayout.HelpBox("All materials already use Quest-compatible shaders.", MessageType.Info);
-            else
-                EditorGUILayout.HelpBox($"{stats.QuestIncompatibleMaterials} material(s) need conversion.", MessageType.Warning);
-
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Duplicate materials before converting", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Recommended: duplicate materials so your PC shaders are preserved in the project.", MessageType.Info);
-
-            GUI.backgroundColor = new Color(0.2f, 0.6f, 0.9f);
-            if (GUILayout.Button("Convert Materials to Quest Compatible", GUILayout.Height(40)))
-                ConvertToQuest();
-            GUI.backgroundColor = Color.white;
             EditorGUILayout.EndVertical();
         }
 
         #endregion
 
-        #region Diagnostics
+        #region Upload report
 
-        private struct AvatarDiagnostics
+        private struct UploadIssue
         {
-            public int PolyCount;
-            public int SkinnedMeshCount;
-            public int MeshRendererCount;
-            public int MaterialSlotCount;
-            public int UniqueMaterialCount;
-            public int LargeTextureCount;
-            public int TextureCount;
-            public int Texture4KCount;
-            public int TextureOver2KCount;
-            public float EstimatedTextureMemoryMB;
-            public int TexturesWithoutMipmaps;
-            public int NonPowerOfTwoTextures;
-            public int BrokenShaderCount;
-            public int NullMaterialSlots;
-            public int BoneCount;
-            public int PhysBoneCount;
-            public int ContactCount;
-            public int ParticleSystemCount;
-            public int AudioSourceCount;
-            public int BadAudioCount;
-            public int MissingScriptCount;
-            public int NonUnitScaleCount;
-            public int LegacyDynamicBoneCount;
-            public int QuestIncompatibleMaterials;
-            public int OtherAvatarsInScene;
-            public float AvatarHeightMeters;
-            public int CriticalIssues;
-            public int WarningIssues;
-            public bool HasDescriptor;
-            public bool HasAnimator;
-            public bool HasHumanoidAnimator;
-            public bool HasAnimatorController;
-            public bool HasViewPosition;
-            public bool LipSyncConfigured;
-            public string OverallSummary;
+            public string Message;
         }
 
-        private AvatarDiagnostics GatherDiagnostics()
+        private struct UploadReport
         {
-            var stats = new AvatarDiagnostics();
-            if (targetAvatar == null) return stats;
+            public List<UploadIssue> Blockers;
+            public List<UploadIssue> Warnings;
+            public int PolyCount;
+            public int MaterialSlots;
+            public int TextureCount;
+            public int Textures4K;
+            public int TexturesOver2K;
+            public float TextureMemoryMB;
+        }
 
-            var countedMeshes = new HashSet<Mesh>();
-            var uniqueMaterials = new HashSet<Material>();
-            var avatarTextures = new HashSet<Texture>();
-            var questShader = FindQuestShader();
-            bool boundsInit = false;
-            Bounds avatarBounds = default;
+        private UploadReport BuildUploadReport()
+        {
+            var report = new UploadReport
+            {
+                Blockers = new List<UploadIssue>(),
+                Warnings = new List<UploadIssue>()
+            };
 
-            var smrs = targetAvatar.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-            var mfs = targetAvatar.GetComponentsInChildren<MeshFilter>(true);
+            if (targetAvatar == null) return report;
+
+            var meshes = new HashSet<Mesh>();
+            var textures = CollectAvatarTextures();
+            int nullMats = 0, brokenShaders = 0, missingScripts = 0;
+
+            foreach (var smr in targetAvatar.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                if (smr != null && smr.sharedMesh != null && meshes.Add(smr.sharedMesh))
+                    report.PolyCount += smr.sharedMesh.triangles.Length / 3;
+
+            foreach (var mf in targetAvatar.GetComponentsInChildren<MeshFilter>(true))
+                if (mf != null && mf.sharedMesh != null && meshes.Add(mf.sharedMesh))
+                    report.PolyCount += mf.sharedMesh.triangles.Length / 3;
+
+            foreach (var r in targetAvatar.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null) continue;
+                var mats = r.sharedMaterials;
+                report.MaterialSlots += mats.Length;
+                foreach (var m in mats)
+                {
+                    if (m == null) { nullMats++; continue; }
+                    if (IsBrokenShader(m.shader)) brokenShaders++;
+                }
+            }
+
+            foreach (var t in targetAvatar.GetComponentsInChildren<Transform>(true))
+                if (t != null)
+                    missingScripts += GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(t.gameObject);
+
+            report.TextureCount = textures.Count;
+            long mem = 0;
+            foreach (var tex in textures)
+            {
+                if (tex == null) continue;
+                int dim = Mathf.Max(tex.width, tex.height);
+                if (dim >= 4096) report.Textures4K++;
+                if (dim > 2048) report.TexturesOver2K++;
+                mem += EstimateTextureBytes(tex);
+            }
+            report.TextureMemoryMB = mem / (1024f * 1024f);
+
+            var descType = GetVRCDescriptorType();
+            bool hasDesc = descType != null && targetAvatar.GetComponent(descType) != null;
+            var anim = targetAvatar.GetComponent<Animator>();
+
+            if (!hasDesc)
+                report.Blockers.Add(new UploadIssue { Message = "Missing VRCAvatarDescriptor on avatar root" });
+            if (anim == null || !anim.isHuman)
+                report.Blockers.Add(new UploadIssue { Message = "Missing humanoid Animator on avatar root" });
+            else if (anim.runtimeAnimatorController == null)
+                report.Blockers.Add(new UploadIssue { Message = "Animator has no controller (causes T-Pose)" });
+            if (missingScripts > 0)
+                report.Blockers.Add(new UploadIssue { Message = $"{missingScripts} missing script reference(s)" });
+            if (nullMats > 0)
+                report.Blockers.Add(new UploadIssue { Message = $"{nullMats} null material slot(s)" });
+            if (brokenShaders > 0)
+                report.Blockers.Add(new UploadIssue { Message = $"{brokenShaders} broken/missing shader(s) — fix manually" });
+
+            if (report.PolyCount > 100000)
+                report.Warnings.Add(new UploadIssue { Message = $"Very high polygon count ({report.PolyCount:N0})" });
+            else if (report.PolyCount > 70000)
+                report.Warnings.Add(new UploadIssue { Message = $"High polygon count ({report.PolyCount:N0})" });
+
+            if (report.MaterialSlots > 16)
+                report.Warnings.Add(new UploadIssue { Message = $"High material slot count ({report.MaterialSlots})" });
+            if (report.Textures4K > 0)
+                report.Warnings.Add(new UploadIssue { Message = $"{report.Textures4K} texture(s) are 4K+ — reduce before upload" });
+            if (report.TexturesOver2K > 0)
+                report.Warnings.Add(new UploadIssue { Message = $"{report.TexturesOver2K} texture(s) over 2K — VRChat recommends 2K max" });
+            if (report.TextureMemoryMB > 150)
+                report.Warnings.Add(new UploadIssue { Message = $"High texture memory (~{report.TextureMemoryMB:F0} MB) — risk of security check failure" });
+
+            if (CountOtherAvatarsInScene() > 0)
+                report.Warnings.Add(new UploadIssue { Message = "Other avatars active in scene — disable before upload" });
+
+            int badAudio = 0;
+            foreach (var a in targetAvatar.GetComponentsInChildren<AudioSource>(true))
+                if (a != null && (a.volume > 0.8f || a.spatialBlend < 1f)) badAudio++;
+            if (badAudio > 0)
+                report.Warnings.Add(new UploadIssue { Message = $"{badAudio} audio source(s) need 3D spatialization" });
+
+            return report;
+        }
+
+        #endregion
+
+        #region Fix all
+
+        private void FixAllUploadErrors()
+        {
+            if (!EditorUtility.DisplayDialog("Fix Upload Errors",
+                "Applies all safe pre-upload fixes.\n\nBack up your avatar first. Continue?",
+                "Fix", "Cancel"))
+                return;
+
+            UndoAvatar();
+            int scripts = RemoveMissingScripts();
+            int mats = CleanMissingMaterials();
+            var anim = targetAvatar.GetComponent<Animator>();
+            if (anim != null && anim.runtimeAnimatorController == null)
+                CreateDummyController(anim);
+            int bounds = FixMeshBounds();
+            int audio = FixAudioSources();
+            bool view = AutoAlignViewPosition(silent: true);
+            bool lip = AutoSetupLipSync(silent: true);
+            MarkDirty();
+
+            EditorUtility.DisplayDialog("Done",
+                $"Missing scripts removed: {scripts}\n" +
+                $"Material slots fixed: {mats}\n" +
+                $"Bounds fixed: {bounds}\n" +
+                $"Audio fixed: {audio}\n" +
+                $"View position: {(view ? "OK" : "skipped")}\n" +
+                $"Lip sync: {(lip ? "OK" : "skipped")}\n\n" +
+                "Re-check the list above. Fix broken shaders manually.",
+                "OK");
+            Repaint();
+        }
+
+        private void UndoAvatar() => Undo.RegisterFullObjectHierarchyUndo(targetAvatar, "Vtool Fix");
+        private void Done(string msg = null)
+        {
+            MarkDirty();
+            if (!string.IsNullOrEmpty(msg))
+                EditorUtility.DisplayDialog("Vtool", msg, "OK");
+            Repaint();
+        }
+
+        private void BackupAvatar()
+        {
+            var backup = Instantiate(targetAvatar);
+            backup.name = targetAvatar.name + "_Backup_" + System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            backup.SetActive(false);
+            Undo.RegisterCreatedObjectUndo(backup, "Backup Avatar");
+            MarkDirty();
+            EditorUtility.DisplayDialog("Backup", $"Created hidden backup:\n{backup.name}", "OK");
+        }
+
+        #endregion
+
+        #region Upload fixes
+
+        private int RemoveMissingScripts()
+        {
+            int n = 0;
+            foreach (var go in targetAvatar.GetComponentsInChildren<Transform>(true).Select(t => t.gameObject))
+                if (go != null) n += GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
+            return n;
+        }
+
+        private int CleanMissingMaterials()
+        {
+            int fixedSlots = 0;
             var renderers = targetAvatar.GetComponentsInChildren<Renderer>(true);
-            var audioSources = targetAvatar.GetComponentsInChildren<AudioSource>(true);
-            var transforms = targetAvatar.GetComponentsInChildren<Transform>(true);
-
-            stats.SkinnedMeshCount = smrs.Length;
-            stats.MeshRendererCount = targetAvatar.GetComponentsInChildren<MeshRenderer>(true).Length;
-
-            foreach (var smr in smrs)
-            {
-                if (smr == null || smr.sharedMesh == null) continue;
-                if (countedMeshes.Add(smr.sharedMesh))
-                    stats.PolyCount += smr.sharedMesh.triangles.Length / 3;
-            }
-
-            foreach (var mf in mfs)
-            {
-                if (mf == null || mf.sharedMesh == null) continue;
-                if (countedMeshes.Add(mf.sharedMesh))
-                    stats.PolyCount += mf.sharedMesh.triangles.Length / 3;
-            }
+            Undo.RecordObjects(renderers, "Fix Materials");
 
             foreach (var r in renderers)
             {
                 if (r == null) continue;
-
-                if (!boundsInit)
-                {
-                    avatarBounds = r.bounds;
-                    boundsInit = true;
-                }
-                else
-                {
-                    avatarBounds.Encapsulate(r.bounds);
-                }
-
                 var mats = r.sharedMaterials;
-                stats.MaterialSlotCount += mats.Length;
-                for (int i = 0; i < mats.Length; i++)
+                if (mats.Length == 0) continue;
+
+                int subCount = GetSubMeshCount(r);
+                var newMats = (Material[])mats.Clone();
+                bool changed = false;
+
+                for (int i = 0; i < newMats.Length; i++)
                 {
-                    var mat = mats[i];
-                    if (mat == null)
-                    {
-                        stats.NullMaterialSlots++;
-                        continue;
-                    }
-
-                    uniqueMaterials.Add(mat);
-                    if (IsBrokenShader(mat.shader))
-                        stats.BrokenShaderCount++;
-
-                    if (questShader != null && mat.shader != questShader)
-                        stats.QuestIncompatibleMaterials++;
-
-                    CollectMaterialTextures(mat, avatarTextures);
+                    if (newMats[i] != null) continue;
+                    var fb = FindFallbackMaterial(newMats, i) ?? GetPlaceholderMaterial();
+                    if (fb == null) continue;
+                    newMats[i] = fb;
+                    fixedSlots++;
+                    changed = true;
                 }
-            }
 
-            stats.UniqueMaterialCount = uniqueMaterials.Count;
-            AnalyzeTextures(avatarTextures, ref stats);
-            stats.AvatarHeightMeters = boundsInit ? avatarBounds.size.y : 0f;
-            stats.AudioSourceCount = audioSources.Length;
-
-            foreach (var a in audioSources)
-            {
-                if (a == null) continue;
-                if (a.volume > 0.8f || a.spatialBlend < 1f)
-                    stats.BadAudioCount++;
-            }
-
-            foreach (var t in transforms)
-            {
-                if (t == null) continue;
-                stats.MissingScriptCount += GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(t.gameObject);
-                if (t.localScale != Vector3.one)
-                    stats.NonUnitScaleCount++;
-            }
-
-            stats.BoneCount = CountBones();
-            stats.PhysBoneCount = CountComponentsOfType("VRC.SDK3.Dynamics.PhysBone.Components.VRCPhysBone");
-            stats.ContactCount = CountComponentsOfType("VRC.SDK3.Dynamics.Contact.Components.ContactBase");
-            stats.ParticleSystemCount = targetAvatar.GetComponentsInChildren<ParticleSystem>(true).Length;
-            stats.LegacyDynamicBoneCount = CountComponentsOfType("DynamicBone");
-            stats.OtherAvatarsInScene = CountOtherAvatarsInScene();
-
-            var descriptorType = GetVRCDescriptorType();
-            stats.HasDescriptor = descriptorType != null && targetAvatar.GetComponent(descriptorType) != null;
-
-            var anim = targetAvatar.GetComponent<Animator>();
-            stats.HasAnimator = anim != null;
-            stats.HasHumanoidAnimator = anim != null && anim.isHuman;
-            stats.HasAnimatorController = anim != null && anim.runtimeAnimatorController != null;
-
-            if (stats.HasDescriptor && descriptorType != null)
-            {
-                var descriptor = targetAvatar.GetComponent(descriptorType);
-                if (TryGetMember(descriptor, descriptorType, "ViewPosition", out var viewPos) && viewPos is Vector3 v && v != Vector3.zero)
-                    stats.HasViewPosition = true;
-
-                if (TryGetMember(descriptor, descriptorType, "VisemeSkinnedMesh", out var visemeMesh) && visemeMesh != null)
-                    stats.LipSyncConfigured = true;
-            }
-
-            stats.CriticalIssues = 0;
-            stats.WarningIssues = 0;
-
-            if (!stats.HasDescriptor) stats.CriticalIssues++;
-            if (!stats.HasHumanoidAnimator) stats.CriticalIssues++;
-            if (!stats.HasAnimatorController) stats.CriticalIssues++;
-            if (stats.MissingScriptCount > 0) stats.CriticalIssues++;
-            if (stats.PolyCount > 100000) stats.CriticalIssues++;
-            if (stats.BrokenShaderCount > 0) stats.CriticalIssues++;
-            if (stats.NullMaterialSlots > 0) stats.CriticalIssues++;
-
-            if (stats.PolyCount > 70000) stats.WarningIssues++;
-            if (stats.PolyCount > QuestPolyLimit) stats.WarningIssues++;
-            if (stats.MaterialSlotCount > 16) stats.WarningIssues++;
-            if (stats.BadAudioCount > 0) stats.WarningIssues++;
-            if (stats.NonUnitScaleCount > 0) stats.WarningIssues++;
-            if (stats.LegacyDynamicBoneCount > 0) stats.WarningIssues++;
-            if (stats.QuestIncompatibleMaterials > 0) stats.WarningIssues++;
-            if (!stats.LipSyncConfigured) stats.WarningIssues++;
-            if (stats.Texture4KCount > 0) stats.WarningIssues++;
-            if (stats.TextureOver2KCount > 0) stats.WarningIssues++;
-            if (stats.EstimatedTextureMemoryMB > 75) stats.WarningIssues++;
-            if (stats.TexturesWithoutMipmaps > 0) stats.WarningIssues++;
-            if (stats.AvatarHeightMeters > MaxAvatarHeight || (stats.AvatarHeightMeters > 0 && stats.AvatarHeightMeters < MinAvatarHeight)) stats.WarningIssues++;
-            if (stats.OtherAvatarsInScene > 0) stats.WarningIssues++;
-
-            if (stats.CriticalIssues > 0)
-                stats.OverallSummary = $"{stats.CriticalIssues} critical issue(s) and {stats.WarningIssues} warning(s) detected. Fix these before uploading.";
-            else if (stats.WarningIssues > 0)
-                stats.OverallSummary = $"No critical blockers, but {stats.WarningIssues} warning(s) should be reviewed.";
-            else
-                stats.OverallSummary = "Avatar looks healthy. Run a build test in VRChat SDK before uploading.";
-
-            return stats;
-        }
-
-        private int CountBones()
-        {
-            var bones = new HashSet<Transform>();
-            foreach (var smr in targetAvatar.GetComponentsInChildren<SkinnedMeshRenderer>(true))
-            {
-                if (smr == null) continue;
-                if (smr.bones != null)
+                if (subCount > 0 && newMats.Length < subCount)
                 {
-                    foreach (var bone in smr.bones)
-                        if (bone != null) bones.Add(bone);
+                    var expanded = new Material[subCount];
+                    for (int i = 0; i < subCount; i++)
+                        expanded[i] = i < newMats.Length && newMats[i] != null
+                            ? newMats[i]
+                            : FindFallbackMaterial(newMats, i) ?? GetPlaceholderMaterial();
+                    newMats = expanded;
+                    changed = true;
                 }
-                if (smr.rootBone != null) bones.Add(smr.rootBone);
+
+                if (changed) r.sharedMaterials = newMats;
             }
-            return bones.Count;
-        }
-
-        private int CountComponentsOfType(string typeName)
-        {
-            var type = GetTypeSafe(typeName);
-            if (type == null) return 0;
-            return targetAvatar.GetComponentsInChildren(type, true).Length;
-        }
-
-        private int CountOtherAvatarsInScene()
-        {
-            var descriptorType = GetVRCDescriptorType();
-            if (descriptorType == null) return 0;
-
-            int count = 0;
-            foreach (var obj in FindObjectsCompat(descriptorType))
-            {
-                if (obj == null) continue;
-                var go = ((Component)obj).gameObject;
-                if (go != targetAvatar && go.activeInHierarchy)
-                    count++;
-            }
-            return count;
-        }
-
-        private static void CollectMaterialTextures(Material mat, HashSet<Texture> textures)
-        {
-            if (mat == null || mat.shader == null) return;
-
-            int propCount = ShaderUtil.GetPropertyCount(mat.shader);
-            for (int i = 0; i < propCount; i++)
-            {
-                if (ShaderUtil.GetPropertyType(mat.shader, i) != ShaderUtil.ShaderPropertyType.TexEnv)
-                    continue;
-
-                string propName = ShaderUtil.GetPropertyName(mat.shader, i);
-                var tex = mat.GetTexture(propName);
-                if (tex != null)
-                    textures.Add(tex);
-            }
-        }
-
-        private static void AnalyzeTextures(HashSet<Texture> textures, ref AvatarDiagnostics stats)
-        {
-            stats.TextureCount = textures.Count;
-            long memoryBytes = 0;
-
-            foreach (var tex in textures)
-            {
-                if (tex == null) continue;
-
-                int maxDim = Mathf.Max(tex.width, tex.height);
-                if (maxDim >= 4096) stats.Texture4KCount++;
-                if (maxDim > 2048) stats.TextureOver2KCount++;
-                if (maxDim > 2048) stats.LargeTextureCount++;
-
-                memoryBytes += EstimateTextureBytes(tex);
-
-                string path = AssetDatabase.GetAssetPath(tex);
-                if (string.IsNullOrEmpty(path)) continue;
-
-                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-                if (importer == null) continue;
-
-                if (!importer.mipmapEnabled)
-                    stats.TexturesWithoutMipmaps++;
-
-                importer.GetSourceTextureWidthAndHeight(out int srcW, out int srcH);
-                if (!IsPowerOfTwo(srcW) || !IsPowerOfTwo(srcH))
-                    stats.NonPowerOfTwoTextures++;
-            }
-
-            stats.EstimatedTextureMemoryMB = memoryBytes / (1024f * 1024f);
-        }
-
-        private static long EstimateTextureBytes(Texture tex)
-        {
-            int w = Mathf.Max(tex.width, 1);
-            int h = Mathf.Max(tex.height, 1);
-            long bytes = (long)w * h * 4;
-            return (long)(bytes * 1.33f);
-        }
-
-        private static bool IsPowerOfTwo(int value)
-        {
-            return value > 0 && (value & (value - 1)) == 0;
-        }
-
-        private static bool IsBrokenShader(Shader shader)
-        {
-            if (shader == null) return true;
-            string name = shader.name;
-            return name.Contains("InternalErrorShader") || name.Contains("Hidden/InternalError");
-        }
-
-        private HashSet<Texture> CollectAvatarTextures()
-        {
-            var textures = new HashSet<Texture>();
-            foreach (var r in targetAvatar.GetComponentsInChildren<Renderer>(true))
-            {
-                if (r == null) continue;
-                foreach (var mat in r.sharedMaterials)
-                    CollectMaterialTextures(mat, textures);
-            }
-            return textures;
-        }
-
-        #endregion
-
-        #region Logic Implementation
-
-        private void BackupAvatar()
-        {
-            if (targetAvatar == null) return;
-
-            GameObject backup = Instantiate(targetAvatar);
-            backup.name = targetAvatar.name + "_Backup_" + System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            backup.SetActive(false);
-            Undo.RegisterCreatedObjectUndo(backup, "Backup Avatar");
-            MarkSceneDirty();
-            Debug.Log($"[Vtool] Created backup: {backup.name}");
-            EditorUtility.DisplayDialog("Backup Created", $"A backup of your avatar has been created and hidden in the scene:\n\n{backup.name}", "OK");
-        }
-
-        private void RunAllFixes()
-        {
-            if (!EditorUtility.DisplayDialog("Run Master Fixes",
-                "This will apply all safe auto-fixes to your avatar. A backup is recommended first. Continue?",
-                "Run Fixes", "Cancel"))
-                return;
-
-            Undo.RegisterFullObjectHierarchyUndo(targetAvatar, "Run All Auto-Fixes");
-            int scripts = RemoveMissingScripts();
-            int materials = CleanMissingMaterials();
-            int bounds = FixMeshBounds();
-            int audio = FixAudioSources();
-            int mipmaps = FixTextureMipmaps();
-            bool viewAligned = AutoAlignViewPosition(silent: true);
-            bool lipSync = AutoSetupLipSync(silent: true);
-            MarkSceneDirty();
-
-            string details = $"Removed {scripts} missing script(s)\n" +
-                             $"Fixed {materials} missing material slot(s)\n" +
-                             $"Fixed bounds on {bounds} skinned mesh(es)\n" +
-                             $"Fixed {audio} audio source(s)\n" +
-                             $"Enabled mipmaps on {mipmaps} texture(s)\n" +
-                             $"View position: {(viewAligned ? "aligned" : "skipped")}\n" +
-                             $"Lip sync: {(lipSync ? "configured" : "skipped")}";
-
-            EditorUtility.DisplayDialog("Auto-Fix Complete", "Master fixes have been applied.\n\n" + details, "OK");
+            return fixedSlots;
         }
 
         private void CreateDummyController(Animator anim)
         {
             if (anim == null) return;
-
-            string folder = "Assets/Vtool";
-            if (!AssetDatabase.IsValidFolder(folder))
-            {
-                if (!AssetDatabase.IsValidFolder("Assets"))
-                    return;
-                AssetDatabase.CreateFolder("Assets", "Vtool");
-            }
-
-            string path = folder + "/DummyController.controller";
-            UnityEditor.Animations.AnimatorController controller;
-
-            if (!System.IO.File.Exists(path))
-                controller = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(path);
-            else
-                controller = AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>(path);
-
-            Undo.RecordObject(anim, "Assign Dummy Controller");
-            anim.runtimeAnimatorController = controller;
-            MarkSceneDirty();
-            Debug.Log("[Vtool] Created and assigned Dummy Animator Controller.");
-        }
-
-        private void UnpackPrefab()
-        {
-            if (PrefabUtility.IsPartOfAnyPrefab(targetAvatar))
-            {
-                Undo.RegisterFullObjectHierarchyUndo(targetAvatar, "Unpack Prefab");
-                PrefabUtility.UnpackPrefabInstance(targetAvatar, PrefabUnpackMode.Completely, InteractionMode.UserAction);
-                MarkSceneDirty();
-                Debug.Log("[Vtool] Prefab unpacked completely.");
-            }
-            else
-            {
-                EditorUtility.DisplayDialog("Not a Prefab", "The target avatar is not a prefab instance.", "OK");
-            }
-        }
-
-        private int RemoveMissingScripts()
-        {
-            int count = 0;
-            var allObjects = targetAvatar.GetComponentsInChildren<Transform>(true).Select(t => t.gameObject).ToArray();
-            foreach (var go in allObjects)
-            {
-                if (go != null)
-                    count += GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
-            }
-
-            if (count > 0) MarkSceneDirty();
-            Debug.Log($"[Vtool] Removed {count} missing scripts.");
-            return count;
-        }
-
-        private int CleanMissingMaterials()
-        {
-            var renderers = targetAvatar.GetComponentsInChildren<Renderer>(true);
-            int fixedSlots = 0;
-
-            Undo.RecordObjects(renderers, "Clean Missing Materials");
-            foreach (var r in renderers)
-            {
-                if (r == null) continue;
-
-                var mats = r.sharedMaterials;
-                if (mats.Length == 0) continue;
-
-                int subMeshCount = GetRendererSubMeshCount(r);
-                bool needsUpdate = false;
-                var newMats = (Material[])mats.Clone();
-
-                for (int i = 0; i < newMats.Length; i++)
-                {
-                    if (newMats[i] != null) continue;
-
-                    var fallback = FindFallbackMaterial(newMats, i) ?? GetPlaceholderMaterial();
-                    if (fallback == null) continue;
-
-                    newMats[i] = fallback;
-                    needsUpdate = true;
-                    fixedSlots++;
-                    Debug.LogWarning($"[Vtool] Filled missing material slot {i} on '{r.gameObject.name}' using '{fallback.name}'. Assign the correct material if needed.", r);
-                }
-
-                if (subMeshCount > 0 && newMats.Length < subMeshCount)
-                {
-                    var expanded = new Material[subMeshCount];
-                    for (int i = 0; i < subMeshCount; i++)
-                        expanded[i] = i < newMats.Length && newMats[i] != null
-                            ? newMats[i]
-                            : FindFallbackMaterial(newMats, i) ?? GetPlaceholderMaterial();
-
-                    newMats = expanded;
-                    needsUpdate = true;
-                }
-
-                if (needsUpdate)
-                    r.sharedMaterials = newMats;
-            }
-
-            if (fixedSlots > 0) MarkSceneDirty();
-            Debug.Log($"[Vtool] Filled {fixedSlots} missing/null material slot(s) without changing submesh order.");
-            return fixedSlots;
-        }
-
-        private static int GetRendererSubMeshCount(Renderer renderer)
-        {
-            if (renderer is SkinnedMeshRenderer smr && smr.sharedMesh != null)
-                return smr.sharedMesh.subMeshCount;
-
-            var meshFilter = renderer.GetComponent<MeshFilter>();
-            if (meshFilter != null && meshFilter.sharedMesh != null)
-                return meshFilter.sharedMesh.subMeshCount;
-
-            return 0;
-        }
-
-        private static Material FindFallbackMaterial(Material[] mats, int nullIndex)
-        {
-            for (int i = nullIndex - 1; i >= 0; i--)
-                if (mats[i] != null) return mats[i];
-
-            for (int i = nullIndex + 1; i < mats.Length; i++)
-                if (mats[i] != null) return mats[i];
-
-            return null;
-        }
-
-        private Material GetPlaceholderMaterial()
-        {
-            if (_placeholderMaterial != null) return _placeholderMaterial;
-
-            string folder = "Assets/Vtool";
-            if (!AssetDatabase.IsValidFolder("Assets/Vtool"))
-                AssetDatabase.CreateFolder("Assets", "Vtool");
-
-            string path = folder + "/MissingMaterialPlaceholder.mat";
-            _placeholderMaterial = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (_placeholderMaterial != null) return _placeholderMaterial;
-
-            var shader = Shader.Find("Standard") ?? Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null) return null;
-
-            _placeholderMaterial = new Material(shader) { name = "MissingMaterialPlaceholder", color = new Color(1f, 0.2f, 0.8f) };
-            AssetDatabase.CreateAsset(_placeholderMaterial, path);
-            AssetDatabase.SaveAssets();
-            return _placeholderMaterial;
+            EnsureFolder("Assets/Vtool");
+            string path = "Assets/Vtool/DummyController.controller";
+            var ctrl = File.Exists(path)
+                ? AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>(path)
+                : UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(path);
+            Undo.RecordObject(anim, "Assign Controller");
+            anim.runtimeAnimatorController = ctrl;
+            MarkDirty();
         }
 
         private int FixMeshBounds()
         {
             var smrs = targetAvatar.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             Undo.RecordObjects(smrs, "Fix Bounds");
-
-            int fixedCount = 0;
+            int n = 0;
             foreach (var smr in smrs)
             {
                 if (smr == null || smr.sharedMesh == null) continue;
-
-                var bounds = smr.sharedMesh.bounds;
-                bounds.Expand(Mathf.Max(bounds.size.magnitude * 0.15f, 0.1f));
-                smr.localBounds = bounds;
-                fixedCount++;
+                var b = smr.sharedMesh.bounds;
+                b.Expand(Mathf.Max(b.size.magnitude * 0.15f, 0.1f));
+                smr.localBounds = b;
+                n++;
             }
-
-            if (fixedCount > 0) MarkSceneDirty();
-            Debug.Log($"[Vtool] Fixed bounds for {fixedCount} SkinnedMeshRenderer(s).");
-            return fixedCount;
+            return n;
         }
 
         private int FixAudioSources()
         {
-            var audioSources = targetAvatar.GetComponentsInChildren<AudioSource>(true);
-            Undo.RecordObjects(audioSources, "Fix Audio");
-
-            int fixedCount = 0;
-            foreach (var audio in audioSources)
+            var sources = targetAvatar.GetComponentsInChildren<AudioSource>(true);
+            Undo.RecordObjects(sources, "Fix Audio");
+            int n = 0;
+            foreach (var a in sources)
             {
-                if (audio == null) continue;
-                bool changed = false;
-                if (audio.spatialBlend < 1f)
-                {
-                    audio.spatialBlend = 1f;
-                    changed = true;
-                }
-                if (audio.volume > 0.8f)
-                {
-                    audio.volume = 0.8f;
-                    changed = true;
-                }
-                if (changed) fixedCount++;
+                if (a == null) continue;
+                bool c = false;
+                if (a.spatialBlend < 1f) { a.spatialBlend = 1f; c = true; }
+                if (a.volume > 0.8f) { a.volume = 0.8f; c = true; }
+                if (c) n++;
             }
-
-            if (fixedCount > 0) MarkSceneDirty();
-            Debug.Log($"[Vtool] Fixed {fixedCount} AudioSource(s) (forced 3D and capped volume).");
-            return fixedCount;
-        }
-
-        private int FixMeshReadWrite()
-        {
-            if (!EditorUtility.DisplayDialog("Fix Mesh Read/Write",
-                "This reimports model files and can reset material assignments on some avatars.\n\nContinue?",
-                "Reimport", "Cancel"))
-                return 0;
-
-            var meshes = new HashSet<Mesh>();
-            foreach (var smr in targetAvatar.GetComponentsInChildren<SkinnedMeshRenderer>(true))
-                if (smr != null && smr.sharedMesh != null) meshes.Add(smr.sharedMesh);
-            foreach (var mf in targetAvatar.GetComponentsInChildren<MeshFilter>(true))
-                if (mf != null && mf.sharedMesh != null) meshes.Add(mf.sharedMesh);
-
-            int count = 0;
-            foreach (var mesh in meshes)
-            {
-                if (mesh.isReadable) continue;
-
-                string path = AssetDatabase.GetAssetPath(mesh);
-                if (string.IsNullOrEmpty(path)) continue;
-
-                var importer = AssetImporter.GetAtPath(path) as ModelImporter;
-                if (importer == null || importer.isReadable) continue;
-
-                importer.isReadable = true;
-                importer.SaveAndReimport();
-                count++;
-            }
-
-            Debug.Log($"[Vtool] Enabled Read/Write on {count} mesh(es).");
-            return count;
-        }
-
-        private void NormalizeScale()
-        {
-            if (targetAvatar.transform.localScale == Vector3.one)
-            {
-                Debug.Log("[Vtool] Root scale is already (1,1,1).");
-                return;
-            }
-
-            Undo.RecordObject(targetAvatar.transform, "Normalize Scale");
-            targetAvatar.transform.localScale = Vector3.one;
-            MarkSceneDirty();
-            Debug.Log("[Vtool] Normalized root scale to (1,1,1).");
+            return n;
         }
 
         private bool AutoAlignViewPosition(bool silent = false)
         {
-            var animator = targetAvatar.GetComponent<Animator>();
-            if (animator == null || !animator.isHuman)
+            var anim = targetAvatar.GetComponent<Animator>();
+            if (anim == null || !anim.isHuman) return false;
+
+            var le = anim.GetBoneTransform(HumanBodyBones.LeftEye);
+            var re = anim.GetBoneTransform(HumanBodyBones.RightEye);
+            Vector3 local;
+
+            if (le != null && re != null)
             {
-                if (!silent) Debug.LogWarning("[Vtool] Avatar is not Humanoid. Cannot auto-align View Position.");
-                return false;
+                local = targetAvatar.transform.InverseTransformPoint((le.position + re.position) * 0.5f);
+                local.z += 0.015f;
+            }
+            else
+            {
+                var head = anim.GetBoneTransform(HumanBodyBones.Head);
+                if (head == null) return false;
+                local = targetAvatar.transform.InverseTransformPoint(head.position);
+                local.y += 0.06f;
+                local.z += 0.08f;
             }
 
-            Transform leftEye = animator.GetBoneTransform(HumanBodyBones.LeftEye);
-            Transform rightEye = animator.GetBoneTransform(HumanBodyBones.RightEye);
+            var descType = GetVRCDescriptorType();
+            var desc = descType != null ? targetAvatar.GetComponent(descType) : null;
+            if (desc == null) return false;
 
-            if (leftEye == null || rightEye == null)
-            {
-                Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
-                if (head == null)
-                {
-                    if (!silent) Debug.LogWarning("[Vtool] Eye/Head bones not found in Humanoid Rig.");
-                    return false;
-                }
-
-                Vector3 headLocal = targetAvatar.transform.InverseTransformPoint(head.position);
-                headLocal.y += 0.06f;
-                headLocal.z += 0.08f;
-                return ApplyViewPosition(headLocal, silent);
-            }
-
-            Vector3 worldCenter = (leftEye.position + rightEye.position) * 0.5f;
-            Vector3 localPos = targetAvatar.transform.InverseTransformPoint(worldCenter);
-            localPos.z += 0.015f;
-            return ApplyViewPosition(localPos, silent);
-        }
-
-        private bool ApplyViewPosition(Vector3 localPos, bool silent)
-        {
-            var descriptorType = GetVRCDescriptorType();
-            if (descriptorType == null) return false;
-
-            var descriptor = targetAvatar.GetComponent(descriptorType);
-            if (descriptor == null) return false;
-
-            Undo.RecordObject(descriptor, "Align View Position");
-            if (!TrySetMember(descriptor, descriptorType, "ViewPosition", localPos))
-            {
-                if (!silent) Debug.LogWarning("[Vtool] Could not set ViewPosition on VRCAvatarDescriptor.");
-                return false;
-            }
-
-            EditorUtility.SetDirty(descriptor);
-            MarkSceneDirty();
-            if (!silent) Debug.Log("[Vtool] Successfully aligned View Position.");
+            Undo.RecordObject(desc, "View Position");
+            if (!TrySetMember(desc, descType, "ViewPosition", local)) return false;
+            EditorUtility.SetDirty(desc);
             return true;
         }
 
         private bool AutoSetupLipSync(bool silent = false)
         {
-            var descriptorType = GetVRCDescriptorType();
-            if (descriptorType == null) return false;
+            var descType = GetVRCDescriptorType();
+            var desc = descType != null ? targetAvatar.GetComponent(descType) : null;
+            if (desc == null) return false;
 
-            var descriptor = targetAvatar.GetComponent(descriptorType);
-            if (descriptor == null) return false;
-
-            SkinnedMeshRenderer bodyMesh = null;
+            SkinnedMeshRenderer face = null;
             foreach (var smr in targetAvatar.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
-                if (smr == null || smr.sharedMesh == null || smr.sharedMesh.blendShapeCount == 0) continue;
-
+                if (smr == null || smr.sharedMesh == null) continue;
                 for (int i = 0; i < smr.sharedMesh.blendShapeCount; i++)
                 {
-                    string shapeName = smr.sharedMesh.GetBlendShapeName(i).ToLowerInvariant();
-                    if (shapeName.Contains("vrc.v_aa") || shapeName.Contains("vrc.v_sil"))
-                    {
-                        bodyMesh = smr;
-                        break;
-                    }
+                    var nm = smr.sharedMesh.GetBlendShapeName(i).ToLowerInvariant();
+                    if (nm.Contains("vrc.v_aa") || nm.Contains("vrc.v_sil")) { face = smr; break; }
                 }
-                if (bodyMesh != null) break;
+                if (face != null) break;
             }
+            if (face == null) return false;
 
-            if (bodyMesh == null)
-            {
-                if (!silent) Debug.LogWarning("[Vtool] Could not find a mesh with standard 'vrc.v_*' viseme blendshapes.");
-                return false;
-            }
-
-            var visemeNames = new string[StandardVisemeSuffixes.Length];
+            var names = new string[VisemeSuffixes.Length];
             int mapped = 0;
-            for (int i = 0; i < StandardVisemeSuffixes.Length; i++)
-                visemeNames[i] = FindVisemeBlendShapeName(bodyMesh.sharedMesh, StandardVisemeSuffixes[i], ref mapped);
+            for (int i = 0; i < VisemeSuffixes.Length; i++)
+                names[i] = MapViseme(face.sharedMesh, VisemeSuffixes[i], ref mapped);
+            if (mapped == 0) return false;
 
-            if (mapped == 0)
-            {
-                if (!silent) Debug.LogWarning("[Vtool] Found a candidate mesh but could not map any viseme blendshapes.");
-                return false;
-            }
-
-            Undo.RecordObject(descriptor, "Setup Lip Sync");
-            TrySetMember(descriptor, descriptorType, "VisemeSkinnedMesh", bodyMesh);
-            TrySetMember(descriptor, descriptorType, "VisemeBlendShapes", visemeNames);
-            TrySetEnumMember(descriptor, descriptorType, "lipSync", "VisemeBlendShape");
-
-            EditorUtility.SetDirty(descriptor);
-            MarkSceneDirty();
-            if (!silent) Debug.Log($"[Vtool] Configured lip sync on '{bodyMesh.name}' with {mapped} viseme blendshape(s).");
+            Undo.RecordObject(desc, "Lip Sync");
+            TrySetMember(desc, descType, "VisemeSkinnedMesh", face);
+            TrySetMember(desc, descType, "VisemeBlendShapes", names);
+            TrySetEnumMember(desc, descType, "lipSync", "VisemeBlendShape");
+            EditorUtility.SetDirty(desc);
             return true;
         }
 
-        private static string FindVisemeBlendShapeName(Mesh mesh, string suffix, ref int mappedCount)
+        private static string MapViseme(Mesh mesh, string suffix, ref int mapped)
         {
-            string[] prefixes = { "vrc.v_", "VRC.v_", "vrc.V_", "VRC.V_" };
-            foreach (var prefix in prefixes)
+            foreach (var p in new[] { "vrc.v_", "VRC.v_" })
             {
-                string candidate = prefix + suffix;
-                if (mesh.GetBlendShapeIndex(candidate) >= 0)
-                {
-                    mappedCount++;
-                    return candidate;
-                }
+                string c = p + suffix;
+                if (mesh.GetBlendShapeIndex(c) >= 0) { mapped++; return c; }
             }
-
             for (int i = 0; i < mesh.blendShapeCount; i++)
             {
-                string shapeName = mesh.GetBlendShapeName(i);
-                if (shapeName.ToLowerInvariant().EndsWith(suffix))
-                {
-                    mappedCount++;
-                    return shapeName;
-                }
+                var n = mesh.GetBlendShapeName(i);
+                if (n.ToLowerInvariant().EndsWith(suffix)) { mapped++; return n; }
             }
-
-            return string.Empty;
+            return "";
         }
 
-        private void ClearBlueprintID()
+        #endregion
+
+        #region Textures
+
+        private void CapTextures(int maxSize)
         {
-            if (!EditorUtility.DisplayDialog("Clear Blueprint ID",
-                "This detaches the avatar from its current VRChat blueprint so it uploads as a new avatar. Continue?",
-                "Clear ID", "Cancel"))
+            if (!EditorUtility.DisplayDialog("Reduce Textures",
+                $"Set Max Size to {maxSize}px on avatar textures.\n\nOriginal files are kept. Continue?",
+                "Reduce", "Cancel"))
                 return;
 
-            var pipelineType = GetTypeSafe("VRC.Core.PipelineManager");
-            if (pipelineType == null)
+            int n = 0;
+            foreach (var tex in CollectAvatarTextures())
             {
-                EditorUtility.DisplayDialog("Not Found", "PipelineManager was not found. Is the VRChat SDK installed?", "OK");
-                return;
+                string path = AssetDatabase.GetAssetPath(tex);
+                var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+                if (imp == null || imp.maxTextureSize <= maxSize) continue;
+                imp.maxTextureSize = maxSize;
+                imp.SaveAndReimport();
+                n++;
             }
-
-            var pipeline = targetAvatar.GetComponent(pipelineType);
-            if (pipeline == null)
-            {
-                EditorUtility.DisplayDialog("Not Found", "No PipelineManager component on this avatar.", "OK");
-                return;
-            }
-
-            Undo.RecordObject(pipeline, "Clear Blueprint ID");
-            if (TrySetMember(pipeline, pipelineType, "blueprintId", string.Empty))
-            {
-                EditorUtility.SetDirty(pipeline);
-                MarkSceneDirty();
-                Debug.Log("[Vtool] Cleared Blueprint ID.");
-                EditorUtility.DisplayDialog("Blueprint Cleared", "Blueprint ID has been cleared. The next upload will create a new avatar.", "OK");
-            }
-        }
-
-        private void CleanupEmptyGameObjects()
-        {
-            Undo.RegisterFullObjectHierarchyUndo(targetAvatar, "Cleanup Empty GameObjects");
-
-            var protectedTransforms = new HashSet<Transform>();
-            foreach (var smr in targetAvatar.GetComponentsInChildren<SkinnedMeshRenderer>(true))
-            {
-                if (smr == null) continue;
-                protectedTransforms.Add(smr.transform);
-                if (smr.bones != null)
-                {
-                    foreach (var bone in smr.bones)
-                        if (bone != null) protectedTransforms.Add(bone);
-                }
-                if (smr.rootBone != null) protectedTransforms.Add(smr.rootBone);
-            }
-
-            var anim = targetAvatar.GetComponent<Animator>();
-            if (anim != null && anim.isHuman)
-            {
-                foreach (HumanBodyBones bone in System.Enum.GetValues(typeof(HumanBodyBones)))
-                {
-                    if (bone == HumanBodyBones.LastBone) continue;
-                    var t = anim.GetBoneTransform(bone);
-                    if (t != null) protectedTransforms.Add(t);
-                }
-            }
-
-            var transformsToProcess = targetAvatar.GetComponentsInChildren<Transform>(true)
-                .Where(t => t != null && t != targetAvatar.transform && !protectedTransforms.Contains(t))
-                .ToList();
-
-            int removed = 0;
-            bool changed = true;
-            while (changed)
-            {
-                changed = false;
-                for (int i = transformsToProcess.Count - 1; i >= 0; i--)
-                {
-                    var t = transformsToProcess[i];
-                    if (t == null)
-                    {
-                        transformsToProcess.RemoveAt(i);
-                        continue;
-                    }
-
-                    if (t.childCount == 0 && t.gameObject.GetComponents<Component>().Length == 1)
-                    {
-                        Undo.DestroyObjectImmediate(t.gameObject);
-                        removed++;
-                        changed = true;
-                        transformsToProcess.RemoveAt(i);
-                    }
-                }
-            }
-
-            MarkSceneDirty();
-            Debug.Log($"[Vtool] Removed {removed} unused empty GameObject(s).");
-            EditorUtility.DisplayDialog("Cleanup Complete", $"Removed {removed} unused empty GameObject(s).", "OK");
-        }
-
-        private void ConvertToQuest()
-        {
-            Shader mobileShader = FindQuestShader();
-            if (mobileShader == null)
-            {
-                EditorUtility.DisplayDialog("Shader Missing",
-                    "Could not find a Quest-compatible VRChat mobile shader. Is the VRChat SDK installed?",
-                    "OK");
-                return;
-            }
-
-            if (!EditorUtility.DisplayDialog("Convert to Quest",
-                "This changes avatar materials to use Quest-compatible shaders.\n\nDuplicate materials is recommended so PC versions are preserved.",
-                "Convert", "Cancel"))
-                return;
-
-            bool duplicate = EditorUtility.DisplayDialog("Duplicate Materials?",
-                "Create duplicated Quest material assets under Assets/Vtool/QuestMaterials before converting?",
-                "Duplicate First", "Convert In Place");
-
-            var renderers = targetAvatar.GetComponentsInChildren<Renderer>(true);
-            int convertedCount = 0;
-            var processedMaterials = new Dictionary<Material, Material>();
-
-            Undo.RecordObjects(renderers, "Convert to Quest");
-            foreach (var r in renderers)
-            {
-                if (r == null) continue;
-                var mats = r.sharedMaterials;
-                bool rendererChanged = false;
-
-                for (int i = 0; i < mats.Length; i++)
-                {
-                    var mat = mats[i];
-                    if (mat == null || mat.shader == mobileShader) continue;
-
-                    Material targetMat = mat;
-                    if (duplicate)
-                    {
-                        if (!processedMaterials.TryGetValue(mat, out targetMat))
-                        {
-                            targetMat = DuplicateQuestMaterial(mat, mobileShader);
-                            processedMaterials[mat] = targetMat;
-                        }
-                    }
-                    else
-                    {
-                        Undo.RecordObject(mat, "Change Shader to Quest");
-                        mat.shader = mobileShader;
-                        EditorUtility.SetDirty(mat);
-                        targetMat = mat;
-                    }
-
-                    mats[i] = targetMat;
-                    rendererChanged = true;
-                    convertedCount++;
-                }
-
-                if (rendererChanged)
-                    r.sharedMaterials = mats;
-            }
-
             AssetDatabase.SaveAssets();
-            MarkSceneDirty();
-            Debug.Log($"[Vtool] Converted {convertedCount} material slot(s) to Quest-compatible shaders.");
-            EditorUtility.DisplayDialog("Quest Conversion",
-                $"Converted {convertedCount} material slot(s) to '{mobileShader.name}'.",
-                "OK");
+            EditorUtility.DisplayDialog("Textures Reduced", $"Updated {n} texture(s) to {maxSize}px import size.\n\nUse Restore to undo.", "OK");
+            Repaint();
         }
 
-        private static Material DuplicateQuestMaterial(Material source, Shader mobileShader)
+        private void RestoreTextures()
         {
-            string folder = "Assets/Vtool/QuestMaterials";
-            if (!AssetDatabase.IsValidFolder("Assets/Vtool"))
-                AssetDatabase.CreateFolder("Assets", "Vtool");
-            if (!AssetDatabase.IsValidFolder(folder))
-                AssetDatabase.CreateFolder("Assets/Vtool", "QuestMaterials");
+            if (!EditorUtility.DisplayDialog("Restore Textures",
+                "Restore import Max Size to each texture's original source resolution?",
+                "Restore", "Cancel"))
+                return;
 
-            string safeName = string.IsNullOrEmpty(source.name) ? "Material" : source.name.Replace("/", "_");
-            string path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{safeName}_Quest.mat");
-
-            var duplicate = new Material(source);
-            duplicate.shader = mobileShader;
-            AssetDatabase.CreateAsset(duplicate, path);
-            return duplicate;
+            int n = 0;
+            foreach (var tex in CollectAvatarTextures())
+            {
+                string path = AssetDatabase.GetAssetPath(tex);
+                var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+                if (imp == null) continue;
+                imp.GetSourceTextureWidthAndHeight(out int w, out int h);
+                int target = Mathf.Clamp(Mathf.Max(w, h), 32, 8192);
+                if (imp.maxTextureSize == target) continue;
+                imp.maxTextureSize = target;
+                imp.SaveAndReimport();
+                n++;
+            }
+            AssetDatabase.SaveAssets();
+            EditorUtility.DisplayDialog("Restored", $"Restored {n} texture(s) to source resolution.", "OK");
+            Repaint();
         }
 
         private int FixTextureMipmaps()
         {
-            var textures = CollectAvatarTextures();
-            int fixedCount = 0;
-
-            foreach (var tex in textures)
+            int n = 0;
+            foreach (var tex in CollectAvatarTextures())
             {
-                string path = AssetDatabase.GetAssetPath(tex);
-                if (string.IsNullOrEmpty(path)) continue;
-
-                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-                if (importer == null || importer.mipmapEnabled) continue;
-
-                importer.mipmapEnabled = true;
-                importer.SaveAndReimport();
-                fixedCount++;
+                var imp = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(tex)) as TextureImporter;
+                if (imp == null || imp.mipmapEnabled) continue;
+                imp.mipmapEnabled = true;
+                imp.SaveAndReimport();
+                n++;
             }
-
-            if (fixedCount > 0)
-            {
-                AssetDatabase.SaveAssets();
-                Debug.Log($"[Vtool] Enabled mipmaps on {fixedCount} texture(s).");
-            }
-            return fixedCount;
+            if (n > 0) AssetDatabase.SaveAssets();
+            return n;
         }
 
-        private void CapTextureImportSizes(int maxSize)
+        private HashSet<Texture> CollectAvatarTextures()
         {
-            if (!EditorUtility.DisplayDialog("Cap Texture Import Sizes",
-                $"This sets Max Size to {maxSize}px in Unity import settings.\n\n" +
-                "Original files are NOT modified. Close-up sharpness may change.\n\nContinue?",
-                "Cap Textures", "Cancel"))
-                return;
-
-            var textures = CollectAvatarTextures();
-            int capped = 0;
-
-            foreach (var tex in textures)
+            var set = new HashSet<Texture>();
+            foreach (var r in targetAvatar.GetComponentsInChildren<Renderer>(true))
             {
-                string path = AssetDatabase.GetAssetPath(tex);
-                if (string.IsNullOrEmpty(path)) continue;
-
-                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-                if (importer == null || importer.maxTextureSize <= maxSize) continue;
-
-                importer.maxTextureSize = maxSize;
-                importer.SaveAndReimport();
-                capped++;
+                if (r == null) continue;
+                foreach (var m in r.sharedMaterials)
+                {
+                    if (m == null || m.shader == null) continue;
+                    for (int i = 0; i < ShaderUtil.GetPropertyCount(m.shader); i++)
+                    {
+                        if (ShaderUtil.GetPropertyType(m.shader, i) != ShaderUtil.ShaderPropertyType.TexEnv) continue;
+                        var t = m.GetTexture(ShaderUtil.GetPropertyName(m.shader, i));
+                        if (t != null) set.Add(t);
+                    }
+                }
             }
-
-            AssetDatabase.SaveAssets();
-            Debug.Log($"[Vtool] Capped {capped} texture(s) to {maxSize}px import size.");
-            EditorUtility.DisplayDialog("Textures Capped",
-                $"Capped {capped} texture import setting(s) to {maxSize}px.\n\nUse Restore to revert to source resolution.",
-                "OK");
+            return set;
         }
 
-        private void RestoreTextureImportSizes()
+        private static long EstimateTextureBytes(Texture tex)
         {
-            if (!EditorUtility.DisplayDialog("Restore Texture Import Sizes",
-                "This restores each avatar texture's Max Size to match its original source file resolution.\n\nContinue?",
-                "Restore", "Cancel"))
-                return;
-
-            var textures = CollectAvatarTextures();
-            int restored = 0;
-
-            foreach (var tex in textures)
-            {
-                string path = AssetDatabase.GetAssetPath(tex);
-                if (string.IsNullOrEmpty(path)) continue;
-
-                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-                if (importer == null) continue;
-
-                importer.GetSourceTextureWidthAndHeight(out int srcW, out int srcH);
-                int sourceMax = Mathf.Max(srcW, srcH);
-                if (sourceMax <= 0) continue;
-
-                int targetMax = Mathf.Clamp(sourceMax, 32, 8192);
-                if (importer.maxTextureSize == targetMax) continue;
-
-                importer.maxTextureSize = targetMax;
-                importer.SaveAndReimport();
-                restored++;
-            }
-
-            AssetDatabase.SaveAssets();
-            Debug.Log($"[Vtool] Restored import size on {restored} texture(s) to source resolution.");
-            EditorUtility.DisplayDialog("Textures Restored",
-                $"Restored {restored} texture import setting(s) to source file resolution.",
-                "OK");
+            return (long)(Mathf.Max(tex.width, 1) * Mathf.Max(tex.height, 1) * 4 * 1.33f);
         }
 
         #endregion
 
         #region Helpers
 
-        private static string GetVersion()
+        private void AutoDetectAvatar()
         {
-            if (!string.IsNullOrEmpty(cachedVersion))
-                return cachedVersion;
+            if (targetAvatar != null) return;
+            if (Selection.activeGameObject != null && HasDescriptor(Selection.activeGameObject))
+            { targetAvatar = Selection.activeGameObject; return; }
 
-            cachedVersion = FallbackVersion;
-            foreach (var path in new[] { "Packages/com.vtool.autofixer/package.json" })
-            {
-                if (!File.Exists(path)) continue;
-                var match = Regex.Match(File.ReadAllText(path), "\"version\"\\s*:\\s*\"([^\"]+)\"");
-                if (match.Success)
-                {
-                    cachedVersion = match.Groups[1].Value;
-                    break;
-                }
-            }
-
-            var scriptGuids = AssetDatabase.FindAssets("VRCAvatarAutoFixer t:MonoScript");
-            foreach (var guid in scriptGuids)
-            {
-                var scriptPath = AssetDatabase.GUIDToAssetPath(guid);
-                if (!scriptPath.EndsWith("VRCAvatarAutoFixer.cs")) continue;
-
-                var pkgPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(scriptPath) ?? string.Empty, "..", "package.json"));
-                if (!File.Exists(pkgPath)) continue;
-
-                var match = Regex.Match(File.ReadAllText(pkgPath), "\"version\"\\s*:\\s*\"([^\"]+)\"");
-                if (match.Success)
-                {
-                    cachedVersion = match.Groups[1].Value;
-                    break;
-                }
-            }
-
-            return cachedVersion;
+            var type = GetVRCDescriptorType();
+            if (type == null) return;
+            var found = FindObjectsCompat(type);
+            if (found.Length > 0) targetAvatar = ((Component)found[0]).gameObject;
         }
 
-        private static bool HasVRCDescriptor(GameObject go)
+        private int CountOtherAvatarsInScene()
         {
-            var descriptorType = GetVRCDescriptorType();
-            return descriptorType != null && go.GetComponent(descriptorType) != null;
+            var type = GetVRCDescriptorType();
+            if (type == null) return 0;
+            int n = 0;
+            foreach (var o in FindObjectsCompat(type))
+            {
+                if (o == null) continue;
+                var go = ((Component)o).gameObject;
+                if (go != targetAvatar && go.activeInHierarchy) n++;
+            }
+            return n;
         }
 
-        private static Shader FindQuestShader()
+        private static int GetSubMeshCount(Renderer r)
         {
-            foreach (var shaderName in QuestShaderNames)
-            {
-                var shader = Shader.Find(shaderName);
-                if (shader != null) return shader;
-            }
+            if (r is SkinnedMeshRenderer smr && smr.sharedMesh != null) return smr.sharedMesh.subMeshCount;
+            var mf = r.GetComponent<MeshFilter>();
+            return mf != null && mf.sharedMesh != null ? mf.sharedMesh.subMeshCount : 0;
+        }
+
+        private static Material FindFallbackMaterial(Material[] mats, int idx)
+        {
+            for (int i = idx - 1; i >= 0; i--) if (mats[i] != null) return mats[i];
+            for (int i = idx + 1; i < mats.Length; i++) if (mats[i] != null) return mats[i];
             return null;
         }
 
-        private static void MarkSceneDirty()
+        private Material GetPlaceholderMaterial()
+        {
+            if (placeholderMaterial != null) return placeholderMaterial;
+            EnsureFolder("Assets/Vtool");
+            string path = "Assets/Vtool/MissingMaterialPlaceholder.mat";
+            placeholderMaterial = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (placeholderMaterial != null) return placeholderMaterial;
+            var shader = Shader.Find("Standard") ?? Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) return null;
+            placeholderMaterial = new Material(shader) { name = "MissingMaterialPlaceholder" };
+            AssetDatabase.CreateAsset(placeholderMaterial, path);
+            AssetDatabase.SaveAssets();
+            return placeholderMaterial;
+        }
+
+        private static void EnsureFolder(string path)
+        {
+            if (AssetDatabase.IsValidFolder(path)) return;
+            if (!AssetDatabase.IsValidFolder("Assets")) return;
+            AssetDatabase.CreateFolder("Assets", path.Replace("Assets/", ""));
+        }
+
+        private static bool HasDescriptor(GameObject go) =>
+            GetVRCDescriptorType() != null && go.GetComponent(GetVRCDescriptorType()) != null;
+
+        private static bool IsBrokenShader(Shader s) =>
+            s == null || s.name.Contains("InternalErrorShader");
+
+        private static void MarkDirty()
         {
             if (!Application.isPlaying)
                 EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
@@ -1589,88 +778,50 @@ namespace XVR.Tools
 #endif
         }
 
-        private static System.Type GetVRCDescriptorType()
-        {
-            return GetTypeSafe("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
-        }
+        private static System.Type GetVRCDescriptorType() =>
+            GetTypeSafe("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
 
-        private static System.Type GetTypeSafe(string typeName)
+        private static System.Type GetTypeSafe(string name)
         {
-            var type = System.Type.GetType(typeName);
-            if (type != null) return type;
-
-            foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+            var t = System.Type.GetType(name);
+            if (t != null) return t;
+            foreach (var a in System.AppDomain.CurrentDomain.GetAssemblies())
             {
-                type = assembly.GetType(typeName);
-                if (type != null) return type;
+                t = a.GetType(name);
+                if (t != null) return t;
             }
-
             return null;
         }
 
-        private static bool TryGetMember(object target, System.Type type, string memberName, out object value)
+        private static bool TrySetMember(object obj, System.Type type, string name, object value)
         {
-            value = null;
-            if (target == null || type == null) return false;
-
-            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-            var field = type.GetField(memberName, flags);
-            if (field != null)
-            {
-                value = field.GetValue(target);
-                return true;
-            }
-
-            var property = type.GetProperty(memberName, flags);
-            if (property != null && property.CanRead)
-            {
-                value = property.GetValue(target);
-                return true;
-            }
-
+            const BindingFlags f = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            var field = type.GetField(name, f);
+            if (field != null) { field.SetValue(obj, value); return true; }
+            var prop = type.GetProperty(name, f);
+            if (prop != null && prop.CanWrite) { prop.SetValue(obj, value); return true; }
             return false;
         }
 
-        private static bool TrySetMember(object target, System.Type type, string memberName, object value)
+        private static bool TrySetEnumMember(object obj, System.Type type, string name, string enumName)
         {
-            if (target == null || type == null) return false;
-
-            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-            var field = type.GetField(memberName, flags);
-            if (field != null)
-            {
-                field.SetValue(target, value);
-                return true;
-            }
-
-            var property = type.GetProperty(memberName, flags);
-            if (property != null && property.CanWrite)
-            {
-                property.SetValue(target, value);
-                return true;
-            }
-
-            return false;
-        }
-
-        private static bool TrySetEnumMember(object target, System.Type type, string memberName, string enumName)
-        {
-            if (target == null || type == null) return false;
-
-            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-            var field = type.GetField(memberName, flags);
+            const BindingFlags f = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            var field = type.GetField(name, f);
             if (field == null || !field.FieldType.IsEnum) return false;
+            try { field.SetValue(obj, System.Enum.Parse(field.FieldType, enumName)); return true; }
+            catch { return false; }
+        }
 
-            try
+        private static string GetVersion()
+        {
+            if (!string.IsNullOrEmpty(cachedVersion)) return cachedVersion;
+            cachedVersion = FallbackVersion;
+            if (File.Exists("Packages/com.vtool.autofixer/package.json"))
             {
-                var enumValue = System.Enum.Parse(field.FieldType, enumName);
-                field.SetValue(target, enumValue);
-                return true;
+                var m = Regex.Match(File.ReadAllText("Packages/com.vtool.autofixer/package.json"), "\"version\"\\s*:\\s*\"([^\"]+)\"");
+                if (m.Success) cachedVersion = m.Groups[1].Value;
             }
-            catch
-            {
-                return false;
-            }
+            return cachedVersion;
         }
 
         #endregion
