@@ -18,7 +18,6 @@ namespace XVR.Tools
         public int AudioPlayOnAwake;
         public int Mipmaps;
         public int OtherAvatarsDisabled;
-        public bool AnimatorController;
         public bool PipelineManager;
         public bool ViewPosition;
         public bool LipSync;
@@ -54,7 +53,6 @@ namespace XVR.Tools
             s.MissingScripts = RemoveMissingScripts(avatar);
             s.MaterialSlots = FixMissingMaterials(avatar);
             s.PipelineManager = EnsurePipelineManager(avatar);
-            s.AnimatorController = AssignDummyController(avatar);
             s.Bounds = FixMeshBounds(avatar);
             s.Audio = FixAudioSources(avatar, out s.AudioPlayOnAwake);
             s.Mipmaps = EnableTextureMipmaps(avatar);
@@ -127,22 +125,6 @@ namespace XVR.Tools
 
             Undo.RegisterCompleteObjectUndo(avatar, "Add PipelineManager");
             avatar.AddComponent(pipelineType);
-            return true;
-        }
-
-        public static bool AssignDummyController(GameObject avatar)
-        {
-            var anim = avatar.GetComponent<Animator>();
-            if (anim == null || anim.runtimeAnimatorController != null) return false;
-
-            EnsureFolder("Assets/Vtool");
-            string path = "Assets/Vtool/DummyController.controller";
-            var ctrl = File.Exists(path)
-                ? AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>(path)
-                : UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(path);
-
-            Undo.RecordObject(anim, "Assign Controller");
-            anim.runtimeAnimatorController = ctrl;
             return true;
         }
 

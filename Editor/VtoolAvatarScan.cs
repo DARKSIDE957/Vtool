@@ -54,7 +54,6 @@ namespace XVR.Tools
         public bool HasDescriptor;
         public bool HasPipelineManager;
         public bool HasHumanoidAnimator;
-        public bool HasAnimatorController;
         public bool HasChestBone;
         public bool HasViewPosition;
         public bool HasLipSync;
@@ -160,7 +159,6 @@ namespace XVR.Tools
 
             var anim = avatar.GetComponent<Animator>();
             r.HasHumanoidAnimator = anim != null && anim.isHuman;
-            r.HasAnimatorController = anim != null && anim.runtimeAnimatorController != null;
             r.HasChestBone = anim != null && anim.isHuman && anim.GetBoneTransform(HumanBodyBones.Chest) != null;
 
             if (r.HasDescriptor && descType != null)
@@ -188,8 +186,6 @@ namespace XVR.Tools
                 r.Issues.Add(Issue(IssueSeverity.Blocker, "Missing PipelineManager on avatar root", "Use Fix All or add via SDK"));
             if (!r.HasHumanoidAnimator)
                 r.Issues.Add(Issue(IssueSeverity.Blocker, "Missing humanoid Animator on avatar root", "Set rig to Humanoid in Import settings"));
-            else if (!r.HasAnimatorController)
-                r.Issues.Add(Issue(IssueSeverity.Blocker, "Animator has no controller (T-Pose in VRChat)", "Fix All assigns a dummy controller"));
             if (r.MissingScripts > 0)
                 r.Issues.Add(Issue(IssueSeverity.Blocker, $"{r.MissingScripts} missing script reference(s)", "Fix All removes them"));
             if (r.NullMaterialSlots > 0)

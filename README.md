@@ -10,7 +10,7 @@ Pre-upload tool for VRChat avatars. Scans for **30+ common upload problems** and
 ### Upload blockers (must fix)
 - Missing VRCAvatarDescriptor
 - Missing PipelineManager
-- Missing humanoid Animator / no controller (T-Pose)
+- Missing humanoid Animator
 - Missing scripts
 - Null material slots
 - Broken shaders (pink materials)
@@ -33,7 +33,6 @@ Pre-upload tool for VRChat avatars. Scans for **30+ common upload problems** and
 - Remove missing scripts
 - Fix material slots (hair-safe)
 - Add PipelineManager if missing
-- Assign dummy animator controller
 - Fix skinned mesh bounds
 - Fix audio (3D, volume, playOnAwake)
 - Enable texture mipmaps
