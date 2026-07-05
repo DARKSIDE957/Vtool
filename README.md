@@ -1,151 +1,164 @@
-<p align="center">
-  <img src="Editor/Resources/VtoolLogo.png" alt="Vtool" width="120" />
-</p>
+<div align="center">
 
-<h1 align="center">Vtool: Avatar Auto-Fixer Pro</h1>
+<img src="Editor/Resources/VtoolLogo.png" alt="Vtool" width="128" />
 
-<p align="center">
-  A free Unity Editor tool for VRChat creators.<br/>
-  Scan your avatar before upload, fix common SDK errors, and reduce texture size without leaving Unity.
-</p>
+# Vtool: Avatar Auto-Fixer Pro
 
-<p align="center">
-  <a href="https://github.com/DARKSIDE957/Vtool/releases/latest"><img src="https://img.shields.io/github/v/release/DARKSIDE957/Vtool?label=version&style=flat-square" alt="Latest release" /></a>
-  <img src="https://img.shields.io/badge/Unity-2022.3+-blue?style=flat-square" alt="Unity 2022.3+" />
-  <img src="https://img.shields.io/badge/VRChat-Avatars%20SDK-9146FF?style=flat-square" alt="VRChat Avatars SDK" />
-</p>
+**Pre-upload checks and fixes for VRChat avatars in Unity.**
 
----
+Scan your avatar, fix the usual SDK problems, shrink textures, then upload like normal.
 
-## What is Vtool?
+<br/>
 
-**Vtool** is a pre-upload helper for VRChat avatars. It lives inside Unity and checks your avatar root for problems that often block or warn during VRChat SDK validation: missing components, broken materials, bad audio settings, heavy textures, and more.
+[![release](https://img.shields.io/github/v/release/DARKSIDE957/Vtool?style=for-the-badge)](https://github.com/DARKSIDE957/Vtool/releases/latest)
+[![unity](https://img.shields.io/badge/Unity-2022.3+-222?style=for-the-badge&logo=unity&logoColor=white)](https://unity.com/)
+[![vcc](https://img.shields.io/badge/Install-VCC-9146FF?style=for-the-badge)](https://vcc.docs.vrchat.com/)
 
-You pick your avatar, read a clear report, apply safe fixes with one click, then upload through the normal VRChat SDK panel.
+</div>
+
+<br/>
+
+## Overview
+
+Vtool is a Unity Editor window for VRChat avatar creators. Point it at your avatar root and it tells you what is wrong before you upload.
 
 | | |
-|---|---|
-| **Runs in** | Unity Editor (not in-game) |
-| **Install via** | VRChat Creator Companion (VCC) |
-| **Cost** | Free |
-| **Source** | Open on GitHub. You can read every line of code |
+|:--|:--|
+| **Where** | Unity Editor only |
+| **Install** | VRChat Creator Companion (VCC) |
+| **Price** | Free |
+| **Code** | Open source on this repo |
 
-### What it helps with
+<br/>
 
-- **Check**: See blockers and warnings before you hit Upload
-- **Fix**: One-click safe fixes for scripts, materials, bounds, audio, lip sync, and scene conflicts
-- **Textures**: Cap import sizes (512 / 1024 / 2048), restore originals, convert Quest shaders
+## The 3 tabs
 
-### What it does *not* do
+<table>
+<tr>
+<td width="33%" valign="top">
 
-- Does not upload your avatar for you
-- Does not replace the VRChat SDK or bypass its rules
-- Does not auto-fix pink/broken shaders (you still reassign those manually)
-- Does not guarantee upload success. Always keep a backup
+### Check
+Blockers, warnings, and a performance snapshot.
 
----
+Poly count, textures, VRChat setup, PhysBones, audio, Quest shaders, and more.
+
+</td>
+<td width="33%" valign="top">
+
+### Fix
+Safe one-click fixes for upload errors.
+
+Scripts, materials, bounds, audio, lip sync, view position, PipelineManager, scene conflicts.
+
+</td>
+<td width="33%" valign="top">
+
+### Textures
+Lower import size or prep for Quest.
+
+Cap to 512 / 1024 / 2048, restore originals, convert mobile shaders.
+
+</td>
+</tr>
+</table>
+
+<br/>
 
 ## Install
 
-You need **Unity 2022.3+**, the **VRChat Avatars SDK**, and the **VRChat Creator Companion (VCC)**.
+**Requirements:** Unity 2022.3+, VRChat Avatars SDK, VCC
 
-### 1. Add the Vtool repository in VCC
+**Step 1.** VCC → **Settings** → **Packages** → **Add Repository**
 
-1. Open **VCC → Settings → Packages**
-2. Click **Add Repository**
-3. Paste this URL:
-
-```
+```text
 https://raw.githubusercontent.com/DARKSIDE957/Vtool/main/index.json
 ```
 
-### 2. Add the package to your project
+**Step 2.** Open your project in VCC → **Manage Project** → add **Vtool Avatar Auto-Fixer Pro**
 
-1. Open your VRChat avatar project in VCC
-2. Click **Manage Project**
-3. Find **Vtool Avatar Auto-Fixer Pro** and click **Add** (or **Update** if you already have it)
+**Step 3.** In Unity: **Vtool → Avatar Auto-Fixer Pro**
 
-Vtool appears under **Unity → Vtool → Avatar Auto-Fixer Pro**.
+> [!TIP]
+> You can update while Unity is open. If the window looks old after an update, use **Vtool → Apply Package Update (Reload)**.
 
-> Updates can apply while Unity is open. If the window looks stale after updating, use **Vtool → Apply Package Update (Reload)**.
+<br/>
 
----
+## Quick start
 
-## How to use
+1. Drop your **avatar root** into the tool (or **Auto-Detect**)
+2. **Check** tab: read what failed
+3. **Backup Avatar** (do this first)
+4. **Fix** tab: **Fix All Upload Errors**
+5. **Textures** tab: only if you need smaller textures or Quest shaders
+6. Upload through the **VRChat SDK**
 
-```
-Unity menu → Vtool → Avatar Auto-Fixer Pro
-```
+<br/>
 
-1. **Assign your avatar root** (or click **Auto-Detect** if it’s in the scene)
-2. Open the **Check** tab and read blockers and warnings
-3. Click **Backup Avatar** before changing anything
-4. Open the **Fix** tab → **Fix All Upload Errors**
-5. Open the **Textures** tab if you need smaller textures or Quest shaders
-6. Upload with the **VRChat SDK** as usual
+## What gets checked
 
----
+<details>
+<summary><b>Upload blockers</b></summary>
 
-## Features
-
-### Check tab
-
-Scans **30+ common issues**, including:
-
-**Upload blockers**
 - Missing `VRCAvatarDescriptor` or `PipelineManager`
 - Missing humanoid Animator
-- Missing scripts, null material slots, broken shaders
-- Missing meshes, extreme polygon count
+- Missing scripts
+- Null material slots
+- Broken shaders (pink materials)
+- Missing meshes
+- Extreme polygon count
 
-**Warnings**
-- View position / lip sync not configured
-- High poly count, too many materials or PhysBones
+</details>
+
+<details>
+<summary><b>Warnings</b></summary>
+
+- View position / lip sync not set
+- Chest bone not mapped
+- Bad root or negative scale
+- High poly count, materials, PhysBones, particles
 - 4K / 2K+ textures, missing mipmaps
-- Bad audio settings, extra avatars in scene
-- Non-Quest shaders for Android uploads
+- Audio not 3D, too loud, play on awake
+- Other avatars active in scene
+- Non-Quest shaders
 
-### Fix tab
+</details>
 
-**Fix All** runs safe, non-visual fixes:
+<details>
+<summary><b>What Fix All changes</b></summary>
 
-- Remove missing scripts
-- Fill null material slots (hair-safe, preserves slot order)
-- Add `PipelineManager` if missing
-- Fix skinned mesh bounds
-- Fix audio (3D spatial, volume cap, disable play on awake)
-- Enable texture mipmaps
-- Disable other avatars in the scene
-- Align view position and set up lip sync
+- Removes missing scripts
+- Fills null material slots (keeps slot order, hair-safe)
+- Adds `PipelineManager` if missing
+- Fixes skinned mesh bounds
+- Fixes audio (3D, volume, play on awake)
+- Enables mipmaps
+- Disables other avatars in the scene
+- Aligns view position
+- Sets up lip sync
 
-Individual fixes are available under **Individual fixes** if you only want one change.
+Pink shaders still need manual reassignment.
 
-### Textures tab
+</details>
 
-- Reduce texture import size to **512**, **1024**, or **2048**
-- Restore original import sizes anytime
-- Convert materials to **Quest / Android** shaders (with optional material duplication)
-
----
+<br/>
 
 ## Safety
 
-Always **back up your avatar** before running fixes. Vtool includes a one-click **Backup Avatar** button that duplicates your hierarchy in the scene.
+> [!WARNING]
+> Back up your avatar before running fixes. Use **Backup Avatar** in the Fix tab or save a copy of the project.
 
-This tool is provided as-is. You are responsible for your project files and upload results. When in doubt, test on a copy first.
+This tool is provided as-is. Test on a copy if you are unsure.
 
----
+<br/>
 
-## Support
+## Links
 
-If Vtool saves you time, optional tips are welcome:
+- [Releases](https://github.com/DARKSIDE957/Vtool/releases)
+- [Report a bug](https://github.com/DARKSIDE957/Vtool/issues)
+- [Buy Me a Coffee](https://buymeacoffee.com/Omv1) (optional)
 
-**[Buy Me a Coffee](https://buymeacoffee.com/Omv1)**. Completely optional; the tool stays free either way.
+<br/>
 
-For bugs or feature ideas, open an issue on [GitHub](https://github.com/DARKSIDE957/Vtool/issues).
-
----
-
-<p align="center">
-  <sub>Made for the VRChat creator community by <strong>DARKSIDE957</strong></sub>
-</p>
+<div align="center">
+<sub>by DARKSIDE957</sub>
+</div>
