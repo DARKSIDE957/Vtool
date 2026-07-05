@@ -1,13 +1,11 @@
 using UnityEngine;
 using UnityEditor;
 using System.IO;
-using System.Text.RegularExpressions;
 
 namespace XVR.Tools
 {
     public class VRCAvatarAutoFixer : EditorWindow
     {
-        private const string FallbackVersion = "2.1.1";
         private const string SupportUrl = "https://buymeacoffee.com/Omv1";
 
         private GameObject targetAvatar;
@@ -17,11 +15,10 @@ namespace XVR.Tools
         private bool showIndividualFixes;
         private Texture2D logoTexture;
 
-        private GUIStyle headerStyle, subStyle, versionStyle, panelStyle;
+        private GUIStyle headerStyle, subStyle, panelStyle;
         private GUIStyle supportStyle;
         private GUIStyle okStyle, warnStyle, errStyle;
         private bool stylesReady;
-        private static string cachedVersion;
 
         private readonly string[] tabs = { "Pre-Upload Check", "Fix Errors", "Textures & Quest" };
 
@@ -84,11 +81,6 @@ namespace XVR.Tools
             stylesReady = true;
             headerStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 19 };
             subStyle = new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = new Color(0.68f, 0.68f, 0.68f) } };
-            versionStyle = new GUIStyle(EditorStyles.miniLabel)
-            {
-                alignment = TextAnchor.MiddleRight, fontStyle = FontStyle.Bold,
-                normal = { textColor = new Color(0.82f, 0.22f, 0.28f) }
-            };
             panelStyle = new GUIStyle(GUI.skin.box) { padding = new RectOffset(14, 14, 12, 12), margin = new RectOffset(6, 6, 5, 5) };
             okStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.25f, 0.82f, 0.4f) }, fontStyle = FontStyle.Bold };
             warnStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(1f, 0.62f, 0.1f) }, fontStyle = FontStyle.Bold };
@@ -130,9 +122,6 @@ namespace XVR.Tools
             GUILayout.Label("Vtool Pre-Upload Fixer", headerStyle);
             GUILayout.Label("Fixes the most common VRChat upload errors", subStyle);
             EditorGUILayout.EndVertical();
-
-            GUILayout.FlexibleSpace();
-            GUILayout.Label("v" + GetVersion(), versionStyle, GUILayout.Width(56));
             EditorGUILayout.EndHorizontal();
             var line = GUILayoutUtility.GetRect(0, 2, GUILayout.ExpandWidth(true));
             EditorGUI.DrawRect(line, new Color(0.72f, 0.14f, 0.2f));
@@ -171,7 +160,7 @@ namespace XVR.Tools
         private void DrawUpdateBanner()
         {
             if (!VtoolPackageUpdateHandler.HasPendingUpdate) return;
-            EditorGUILayout.HelpBox($"Vtool v{VtoolPackageUpdateHandler.PendingVersion} installing — reloading…", MessageType.Info);
+            EditorGUILayout.HelpBox("Vtool update detected — reloading…", MessageType.Info);
             if (GUILayout.Button("Apply Update Now"))
                 VtoolPackageUpdateHandler.CheckForPackageUpdate(silent: false, force: true);
         }
@@ -455,18 +444,6 @@ namespace XVR.Tools
 
             var found = VtoolAvatarFixes.FindObjects(type);
             if (found.Length > 0) targetAvatar = ((Component)found[0]).gameObject;
-        }
-
-        private static string GetVersion()
-        {
-            if (!string.IsNullOrEmpty(cachedVersion)) return cachedVersion;
-            cachedVersion = FallbackVersion;
-            if (File.Exists("Packages/com.vtool.autofixer/package.json"))
-            {
-                var m = Regex.Match(File.ReadAllText("Packages/com.vtool.autofixer/package.json"), "\"version\"\\s*:\\s*\"([^\"]+)\"");
-                if (m.Success) cachedVersion = m.Groups[1].Value;
-            }
-            return cachedVersion;
         }
 
         #endregion

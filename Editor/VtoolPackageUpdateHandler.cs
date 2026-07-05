@@ -11,7 +11,8 @@ namespace XVR.Tools
     {
         private const string LoadedVersionKey = "com.vtool.autofixer.loadedVersion";
         private const string PendingVersionKey = "com.vtool.autofixer.pendingVersion";
-        private const double PollIntervalSeconds = 3.0;
+        private const string PackageStampKey = "com.vtool.autofixer.packageStamp";
+        private const double PollIntervalSeconds = 2.0;
 
         private static string packageJsonPath;
         private static double lastPollTime;
@@ -37,29 +38,32 @@ namespace XVR.Tools
         {
             packageJsonPath = FindPackageJsonPath();
             string diskVersion = ReadVersionFromDisk();
+            string diskStamp = ReadPackageStamp();
 
             if (string.IsNullOrEmpty(diskVersion))
                 return;
 
             string loadedVersion = EditorPrefs.GetString(LoadedVersionKey, string.Empty);
+            string loadedStamp = EditorPrefs.GetString(PackageStampKey, string.Empty);
 
             if (string.IsNullOrEmpty(loadedVersion))
             {
                 EditorPrefs.SetString(LoadedVersionKey, diskVersion);
+                EditorPrefs.SetString(PackageStampKey, diskStamp);
                 EditorPrefs.DeleteKey(PendingVersionKey);
                 return;
             }
 
-            if (diskVersion == loadedVersion)
+            if (diskVersion == loadedVersion && diskStamp == loadedStamp)
             {
                 EditorPrefs.DeleteKey(PendingVersionKey);
                 return;
             }
 
-            // Domain reload finished — new package version is now active.
             EditorPrefs.SetString(LoadedVersionKey, diskVersion);
+            EditorPrefs.SetString(PackageStampKey, diskStamp);
             EditorPrefs.DeleteKey(PendingVersionKey);
-            Debug.Log($"[Vtool] Updated to v{diskVersion}.");
+            Debug.Log("[Vtool] Package update applied.");
         }
 
         private static void OnFocusChanged(bool hasFocus)
@@ -95,46 +99,52 @@ namespace XVR.Tools
             if (string.IsNullOrEmpty(diskVersion))
                 return;
 
+            string diskStamp = ReadPackageStamp();
             string loadedVersion = EditorPrefs.GetString(LoadedVersionKey, string.Empty);
+            string loadedStamp = EditorPrefs.GetString(PackageStampKey, string.Empty);
 
             if (!force)
             {
-                if (string.IsNullOrEmpty(loadedVersion) || diskVersion == loadedVersion)
+                if (string.IsNullOrEmpty(loadedVersion))
+                    return;
+
+                if (diskVersion == loadedVersion && diskStamp == loadedStamp)
                     return;
             }
-            else if (diskVersion == loadedVersion)
+            else if (diskVersion == loadedVersion && diskStamp == loadedStamp)
             {
-                EditorUtility.DisplayDialog("Vtool", $"Already running v{diskVersion}.", "OK");
+                EditorUtility.DisplayDialog("Vtool", "Already on the latest installed package.", "OK");
                 return;
             }
 
             EditorPrefs.SetString(PendingVersionKey, diskVersion);
-            ApplyPackageUpdate(diskVersion, silent);
+            ApplyPackageUpdate(silent);
         }
 
-        private static void ApplyPackageUpdate(string newVersion, bool silent)
+        private static void ApplyPackageUpdate(bool silent)
         {
             if (reloadScheduled)
                 return;
 
             reloadScheduled = true;
 
-            Debug.Log($"[Vtool] Package update detected (v{newVersion}). Refreshing and reloading scripts...");
+            Debug.Log("[Vtool] Package update detected. Refreshing and reloading…");
 
             AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
 
             if (!silent)
             {
                 EditorUtility.DisplayDialog(
-                    "Vtool Update Detected",
-                    $"A new version of Vtool (v{newVersion}) was installed while Unity was open.\n\n" +
-                    "Unity will refresh and reload scripts now so the update takes effect.",
+                    "Vtool Update",
+                    "A new Vtool package was installed while Unity was open.\n\n" +
+                    "Unity will refresh and reload now so the update takes effect.",
                     "OK");
             }
 
             EditorApplication.delayCall += () =>
             {
                 CompilationPipeline.RequestScriptCompilation();
+                EditorUtility.RequestScriptReload();
                 EditorApplication.delayCall += () => { reloadScheduled = false; };
             };
         }
@@ -149,6 +159,32 @@ namespace XVR.Tools
 
             var match = Regex.Match(File.ReadAllText(packageJsonPath), "\"version\"\\s*:\\s*\"([^\"]+)\"");
             return match.Success ? match.Groups[1].Value : string.Empty;
+        }
+
+        private static string ReadPackageStamp()
+        {
+            if (string.IsNullOrEmpty(packageJsonPath))
+                packageJsonPath = FindPackageJsonPath();
+
+            if (string.IsNullOrEmpty(packageJsonPath) || !File.Exists(packageJsonPath))
+                return string.Empty;
+
+            var pkgDir = Path.GetDirectoryName(packageJsonPath);
+            if (string.IsNullOrEmpty(pkgDir) || !Directory.Exists(pkgDir))
+                return string.Empty;
+
+            long newestTicks = File.GetLastWriteTimeUtc(packageJsonPath).Ticks;
+            foreach (var file in Directory.EnumerateFiles(pkgDir, "*", SearchOption.AllDirectories))
+            {
+                if (file.EndsWith(".meta"))
+                    continue;
+
+                long ticks = File.GetLastWriteTimeUtc(file).Ticks;
+                if (ticks > newestTicks)
+                    newestTicks = ticks;
+            }
+
+            return newestTicks.ToString();
         }
 
         private static string FindPackageJsonPath()
