@@ -2,11 +2,11 @@
   <img src="Editor/Resources/VtoolLogo.png" alt="Vtool" width="120" />
 </p>
 
-<h1 align="center">Vtool — Avatar Auto-Fixer Pro</h1>
+<h1 align="center">Vtool: Avatar Auto-Fixer Pro</h1>
 
 <p align="center">
   A free Unity Editor tool for VRChat creators.<br/>
-  Scan your avatar before upload, fix common SDK errors, and reduce texture size — without leaving Unity.
+  Scan your avatar before upload, fix common SDK errors, and reduce texture size without leaving Unity.
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 
 ## What is Vtool?
 
-**Vtool** is a pre-upload helper for VRChat avatars. It lives inside Unity and checks your avatar root for problems that often block or warn during VRChat SDK validation — missing components, broken materials, bad audio settings, heavy textures, and more.
+**Vtool** is a pre-upload helper for VRChat avatars. It lives inside Unity and checks your avatar root for problems that often block or warn during VRChat SDK validation: missing components, broken materials, bad audio settings, heavy textures, and more.
 
 You pick your avatar, read a clear report, apply safe fixes with one click, then upload through the normal VRChat SDK panel.
 
@@ -28,20 +28,20 @@ You pick your avatar, read a clear report, apply safe fixes with one click, then
 | **Runs in** | Unity Editor (not in-game) |
 | **Install via** | VRChat Creator Companion (VCC) |
 | **Cost** | Free |
-| **Source** | Open on GitHub — you can read every line of code |
+| **Source** | Open on GitHub. You can read every line of code |
 
 ### What it helps with
 
-- **Check** — See blockers and warnings before you hit Upload
-- **Fix** — One-click safe fixes for scripts, materials, bounds, audio, lip sync, and scene conflicts
-- **Textures** — Cap import sizes (512 / 1024 / 2048), restore originals, convert Quest shaders
+- **Check**: See blockers and warnings before you hit Upload
+- **Fix**: One-click safe fixes for scripts, materials, bounds, audio, lip sync, and scene conflicts
+- **Textures**: Cap import sizes (512 / 1024 / 2048), restore originals, convert Quest shaders
 
 ### What it does *not* do
 
 - Does not upload your avatar for you
 - Does not replace the VRChat SDK or bypass its rules
 - Does not auto-fix pink/broken shaders (you still reassign those manually)
-- Does not guarantee upload success — always keep a backup
+- Does not guarantee upload success. Always keep a backup
 
 ---
 
@@ -78,7 +78,7 @@ Unity menu → Vtool → Avatar Auto-Fixer Pro
 ```
 
 1. **Assign your avatar root** (or click **Auto-Detect** if it’s in the scene)
-2. Open the **Check** tab — read blockers and warnings
+2. Open the **Check** tab and read blockers and warnings
 3. Click **Backup Avatar** before changing anything
 4. Open the **Fix** tab → **Fix All Upload Errors**
 5. Open the **Textures** tab if you need smaller textures or Quest shaders
@@ -110,7 +110,7 @@ Scans **30+ common issues**, including:
 **Fix All** runs safe, non-visual fixes:
 
 - Remove missing scripts
-- Fill null material slots (hair-safe — preserves slot order)
+- Fill null material slots (hair-safe, preserves slot order)
 - Add `PipelineManager` if missing
 - Fix skinned mesh bounds
 - Fix audio (3D spatial, volume cap, disable play on awake)
@@ -140,7 +140,7 @@ This tool is provided as-is. You are responsible for your project files and uplo
 
 If Vtool saves you time, optional tips are welcome:
 
-**[Buy Me a Coffee](https://buymeacoffee.com/Omv1)** — completely optional; the tool stays free either way.
+**[Buy Me a Coffee](https://buymeacoffee.com/Omv1)**. Completely optional; the tool stays free either way.
 
 For bugs or feature ideas, open an issue on [GitHub](https://github.com/DARKSIDE957/Vtool/issues).
 
