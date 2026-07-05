@@ -12,7 +12,7 @@ namespace XVR.Tools
 {
     public class VRCAvatarAutoFixer : EditorWindow
     {
-        private const string FallbackVersion = "2.0.0";
+        private const string FallbackVersion = "2.0.1";
 
         private GameObject targetAvatar;
         private Vector2 scrollPos;
@@ -56,6 +56,7 @@ namespace XVR.Tools
             scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
 
             DrawHeader();
+            DrawUpdateBanner();
             DrawDisclaimer();
             DrawAvatarPicker();
 
@@ -107,6 +108,19 @@ namespace XVR.Tools
             var line = GUILayoutUtility.GetRect(0, 2, GUILayout.ExpandWidth(true));
             EditorGUI.DrawRect(line, new Color(0.72f, 0.14f, 0.2f));
             EditorGUILayout.EndVertical();
+        }
+
+        private void DrawUpdateBanner()
+        {
+            if (!VtoolPackageUpdateHandler.HasPendingUpdate)
+                return;
+
+            EditorGUILayout.HelpBox(
+                $"Vtool v{VtoolPackageUpdateHandler.PendingVersion} is installing — Unity is reloading scripts…",
+                MessageType.Info);
+
+            if (GUILayout.Button("Apply Update Now (Reload Scripts)", GUILayout.Height(26)))
+                VtoolPackageUpdateHandler.CheckForPackageUpdate(silent: false, force: true);
         }
 
         private void DrawDisclaimer()

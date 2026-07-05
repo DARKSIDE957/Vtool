@@ -34,7 +34,9 @@ Original image files are never deleted — only Unity import settings change.
 1. VCC → **Settings → Packages → Add Repository**
 2. **Projects → Manage Project** → add **Vtool Avatar Auto-Fixer Pro**
 
-Current version: **2.0.0**
+Current version: **2.0.1**
+
+Updates apply automatically while Unity is open — VCC can update the package and Unity will refresh and reload scripts.
 
 ## Usage
 
@@ -53,6 +55,13 @@ Current version: **2.0.0**
 - VRChat Avatars SDK 3.x
 
 ## Changelog
+
+### 2.0.1
+
+**Added**
+- Auto-detect Vtool package updates while Unity is open
+- Refreshes assets and reloads scripts when VCC installs a new version
+- Manual menu: Vtool → Apply Package Update (Reload)
 
 ### 2.0.0
 
