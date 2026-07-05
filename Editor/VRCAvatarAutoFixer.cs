@@ -7,15 +7,18 @@ namespace XVR.Tools
 {
     public class VRCAvatarAutoFixer : EditorWindow
     {
-        private const string FallbackVersion = "2.1.0";
+        private const string FallbackVersion = "2.1.1";
+        private const string SupportUrl = "https://buymeacoffee.com/Omv1";
 
         private GameObject targetAvatar;
         private Vector2 scrollPos;
         private int tabIndex;
         private int textureCapSize = 2048;
         private bool showIndividualFixes;
+        private Texture2D logoTexture;
 
         private GUIStyle headerStyle, subStyle, versionStyle, panelStyle;
+        private GUIStyle supportStyle;
         private GUIStyle okStyle, warnStyle, errStyle;
         private bool stylesReady;
         private static string cachedVersion;
@@ -30,7 +33,13 @@ namespace XVR.Tools
             w.Show();
         }
 
-        private void OnEnable() => AutoDetectAvatar();
+        private void OnEnable()
+        {
+            AutoDetectAvatar();
+            LoadLogo();
+            if (logoTexture != null)
+                titleContent = new GUIContent("Vtool Pre-Upload", logoTexture);
+        }
         private void OnSelectionChange() { if (targetAvatar == null) Repaint(); }
 
         private void OnGUI()
@@ -45,6 +54,7 @@ namespace XVR.Tools
 
             if (targetAvatar == null)
             {
+                DrawSupportFooter();
                 EditorGUILayout.EndScrollView();
                 return;
             }
@@ -62,6 +72,7 @@ namespace XVR.Tools
                 case 2: DrawTexturesTab(scan); break;
             }
 
+            DrawSupportFooter();
             EditorGUILayout.EndScrollView();
         }
 
@@ -82,21 +93,78 @@ namespace XVR.Tools
             okStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.25f, 0.82f, 0.4f) }, fontStyle = FontStyle.Bold };
             warnStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(1f, 0.62f, 0.1f) }, fontStyle = FontStyle.Bold };
             errStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.95f, 0.28f, 0.28f) }, fontStyle = FontStyle.Bold };
+            supportStyle = new GUIStyle(EditorStyles.miniLabel)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                normal = { textColor = new Color(0.75f, 0.75f, 0.75f) }
+            };
+        }
+
+        private void LoadLogo()
+        {
+            if (logoTexture != null) return;
+
+            const string pkgPath = "Packages/com.vtool.autofixer/Editor/Resources/VtoolLogo.png";
+            if (File.Exists(pkgPath))
+                logoTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(pkgPath);
+
+            if (logoTexture == null)
+            {
+                foreach (var guid in AssetDatabase.FindAssets("VtoolLogo t:Texture2D"))
+                {
+                    logoTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(guid));
+                    if (logoTexture != null) break;
+                }
+            }
         }
 
         private void DrawHeader()
         {
             EditorGUILayout.BeginVertical(panelStyle);
             EditorGUILayout.BeginHorizontal();
+
+            if (logoTexture != null)
+                GUILayout.Label(logoTexture, GUILayout.Width(56), GUILayout.Height(56));
+
             EditorGUILayout.BeginVertical();
             GUILayout.Label("Vtool Pre-Upload Fixer", headerStyle);
             GUILayout.Label("Fixes the most common VRChat upload errors", subStyle);
             EditorGUILayout.EndVertical();
+
             GUILayout.FlexibleSpace();
             GUILayout.Label("v" + GetVersion(), versionStyle, GUILayout.Width(56));
             EditorGUILayout.EndHorizontal();
             var line = GUILayoutUtility.GetRect(0, 2, GUILayout.ExpandWidth(true));
             EditorGUI.DrawRect(line, new Color(0.72f, 0.14f, 0.2f));
+            EditorGUILayout.EndVertical();
+        }
+
+        private void DrawSupportFooter()
+        {
+            EditorGUILayout.BeginVertical(panelStyle);
+            EditorGUILayout.BeginHorizontal();
+
+            if (logoTexture != null)
+                GUILayout.Label(logoTexture, GUILayout.Width(28), GUILayout.Height(28));
+
+            EditorGUILayout.BeginVertical();
+            GUILayout.Label("Enjoying Vtool?", supportStyle);
+            GUILayout.Label("Support development", EditorStyles.miniLabel);
+            EditorGUILayout.EndVertical();
+
+            GUILayout.FlexibleSpace();
+
+            var supportButton = new GUIStyle(GUI.skin.button)
+            {
+                fontStyle = FontStyle.Bold,
+                padding = new RectOffset(12, 12, 6, 6)
+            };
+            GUI.backgroundColor = new Color(1f, 0.8f, 0.15f);
+            if (GUILayout.Button("☕  Buy Me a Coffee", supportButton, GUILayout.Height(32)))
+                Application.OpenURL(SupportUrl);
+            GUI.backgroundColor = Color.white;
+
+            EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndVertical();
         }
 

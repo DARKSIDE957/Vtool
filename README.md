@@ -52,7 +52,9 @@ Pre-upload tool for VRChat avatars. Scans for **30+ common upload problems** and
 
 `https://raw.githubusercontent.com/DARKSIDE957/Vtool/main/index.json`
 
-Current version: **2.1.0**
+Current version: **2.1.1**
+
+Support: [Buy Me a Coffee](https://buymeacoffee.com/Omv1)
 
 ## Usage
 
@@ -66,6 +68,12 @@ Current version: **2.1.0**
 6. Upload via VRChat SDK
 
 ## Changelog
+
+### 2.1.1
+
+**Added**
+- Vtool logo in the tool window and Unity tab icon
+- Buy Me a Coffee support link in the tool
 
 ### 2.1.0
 
