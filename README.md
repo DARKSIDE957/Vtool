@@ -67,30 +67,4 @@ Support: [Buy Me a Coffee](https://buymeacoffee.com/Omv1)
 5. **Textures & Quest** — reduce textures if needed
 6. Upload via VRChat SDK
 
-## Changelog
-
-### 2.1.1
-
-**Added**
-- Vtool logo in the tool window and Unity tab icon
-- Buy Me a Coffee support link in the tool
-
-### 2.1.0
-
-**Added**
-- 30+ pre-upload checks based on common VRChat errors
-- PipelineManager auto-add
-- Disable other avatars in scene
-- Audio playOnAwake fix
-- Chest bone, PhysBone, particle, scale checks
-- Quest shader conversion tab
-- Clear blueprint ID option
-- Per-issue fix hints in the check list
-
-### 2.0.1
-- Auto-apply package updates while Unity is open
-
-### 2.0.0
-- Focused remake: pre-upload errors + textures
-
 *Developed by DARKSIDE957*
