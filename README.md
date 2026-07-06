@@ -87,10 +87,11 @@ https://raw.githubusercontent.com/DARKSIDE957/Vtool/main/index.json
 
 1. Drop your **avatar root** into the tool (or **Auto-Detect**)
 2. **Check** tab: read what failed
-3. **Backup Avatar** (do this first)
+3. **Backup Avatar** or rely on auto rollback before fixes
 4. **Fix** tab: **Fix All Safe Upload Errors**
-5. **Textures** tab: only if you need smaller textures or Quest shaders
-6. Upload through the **VRChat SDK**
+5. If anything breaks: **Rollback Avatar**
+6. **Textures** tab: only if you need smaller textures or Quest shaders
+7. Upload through the **VRChat SDK**
 
 <br/>
 
@@ -146,9 +147,11 @@ Pink shaders still need manual reassignment.
 ## Safety
 
 > [!WARNING]
-> Back up your avatar before running fixes. Use **Backup Avatar** in the Fix tab or save a copy of the project.
+> Vtool saves a **rollback copy** before fixes. If something looks wrong, click **Rollback Avatar** in the Fix tab.
 
-This tool is provided as-is. Test on a copy if you are unsure.
+You can also use **Backup Avatar** for a visible copy in the scene, or Unity **Ctrl+Z** for the last edit.
+
+Test on a copy of your project if you are unsure.
 
 <br/>
 

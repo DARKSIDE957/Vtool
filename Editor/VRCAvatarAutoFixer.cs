@@ -47,6 +47,7 @@ namespace XVR.Tools
             DrawHeader();
             DrawUpdateBanner();
             DrawAvatarPicker();
+            DrawRollbackBanner();
 
             if (targetAvatar == null)
             {
@@ -128,7 +129,7 @@ namespace XVR.Tools
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.LabelField(
-                "Fix All never deletes meshes, objects, or materials. Back up first.",
+                "Fix All never deletes meshes, objects, or materials. Rollback saves before fixes.",
                 EditorStyles.centeredGreyMiniLabel);
         }
 
@@ -146,7 +147,7 @@ namespace XVR.Tools
         private void DrawUpdateBanner()
         {
             if (!VtoolPackageUpdateHandler.HasPendingUpdate) return;
-            EditorGUILayout.HelpBox("Update detected — reloading…", MessageType.Info);
+            EditorGUILayout.HelpBox("Update detected. Reloading...", MessageType.Info);
             if (GUILayout.Button("Apply Update Now"))
                 VtoolPackageUpdateHandler.CheckForPackageUpdate(silent: false, force: true);
         }
@@ -166,6 +167,20 @@ namespace XVR.Tools
             if (GUILayout.Button("Auto-Detect", GUILayout.Width(100)))
                 AutoDetectAvatar();
             EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
+        }
+
+        private void DrawRollbackBanner()
+        {
+            if (targetAvatar == null || !VtoolAvatarRollback.HasRollback(targetAvatar)) return;
+
+            EditorGUILayout.BeginVertical(panelStyle);
+            EditorGUILayout.LabelField("Rollback point saved from before Vtool changes.", EditorStyles.wordWrappedMiniLabel);
+            var prev = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
+            if (GUILayout.Button("Rollback Avatar", GUILayout.Height(30)))
+                RunRollback();
+            GUI.backgroundColor = prev;
             EditorGUILayout.EndVertical();
         }
 
@@ -279,6 +294,15 @@ namespace XVR.Tools
                 if (GUILayout.Button("Backup Avatar", GUILayout.Height(28)))
                     BackupAvatar();
 
+                if (VtoolAvatarRollback.HasRollback(targetAvatar))
+                {
+                    var prevRollback = GUI.backgroundColor;
+                    GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
+                    if (GUILayout.Button("Rollback Avatar", GUILayout.Height(28)))
+                        RunRollback();
+                    GUI.backgroundColor = prevRollback;
+                }
+
                 GUILayout.Space(4);
                 var prev = GUI.backgroundColor;
                 GUI.backgroundColor = scan.BlockerCount > 0 ? new Color(0.28f, 0.72f, 0.38f) : new Color(0.4f, 0.55f, 0.45f);
@@ -333,6 +357,9 @@ namespace XVR.Tools
                 {
                     if (EditorUtility.DisplayDialog("Reduce Textures", $"Cap avatar textures to {textureCapSize}px import size?", "Reduce", "Cancel"))
                     {
+                        var textures = VtoolAvatarFixes.CollectTextures(targetAvatar);
+                        VtoolAvatarRollback.EnsureCapture(targetAvatar);
+                        VtoolAvatarRollback.RecordTextures(targetAvatar, textures);
                         int n = VtoolAvatarFixes.CapTextureSizes(targetAvatar, textureCapSize);
                         EditorUtility.DisplayDialog("Done", $"Reduced {n} texture(s). Use Restore to undo.", "OK");
                         Repaint();
@@ -344,6 +371,9 @@ namespace XVR.Tools
                 {
                     if (EditorUtility.DisplayDialog("Restore", "Restore textures to source file resolution?", "Restore", "Cancel"))
                     {
+                        var textures = VtoolAvatarFixes.CollectTextures(targetAvatar);
+                        VtoolAvatarRollback.EnsureCapture(targetAvatar);
+                        VtoolAvatarRollback.RecordTextures(targetAvatar, textures);
                         int n = VtoolAvatarFixes.RestoreTextureSizes(targetAvatar);
                         EditorUtility.DisplayDialog("Done", $"Restored {n} texture(s).", "OK");
                         Repaint();
@@ -353,7 +383,7 @@ namespace XVR.Tools
                 if (GUILayout.Button("Enable mipmaps", GUILayout.Height(24)))
                 {
                     if (EditorUtility.DisplayDialog("Enable Mipmaps", "Changes texture import settings for textures on this avatar. Continue?", "Enable", "Cancel"))
-                        WithUndo(() => VtoolAvatarFixes.EnableTextureMipmaps(targetAvatar));
+                        WithUndo(() => VtoolAvatarFixes.EnableTextureMipmaps(targetAvatar), trackTextures: true);
                 }
             });
 
@@ -368,6 +398,7 @@ namespace XVR.Tools
                 {
                     if (EditorUtility.DisplayDialog("Quest Conversion", "Duplicate materials then convert to VRChat/Mobile/Toon Lit?", "Convert", "Cancel"))
                     {
+                        VtoolAvatarRollback.EnsureCapture(targetAvatar);
                         int n = VtoolAvatarFixes.ConvertToQuestShaders(targetAvatar, true);
                         EditorUtility.DisplayDialog("Done", $"Converted {n} material slot(s).", "OK");
                         Repaint();
@@ -384,11 +415,11 @@ namespace XVR.Tools
         {
             if (!EditorUtility.DisplayDialog("Fix All",
                 "Applies safe fixes only.\n\n" +
-                "Does NOT remove scripts, meshes, objects, or materials.\n" +
-                "Does NOT change view position or lip sync if already set.\n\n" +
-                "Back up first. Continue?", "Fix", "Cancel"))
+                "A rollback copy is saved first so you can undo everything.\n\n" +
+                "Continue?", "Fix", "Cancel"))
                 return;
 
+            VtoolAvatarRollback.Capture(targetAvatar);
             var s = VtoolAvatarFixes.ApplyAllSafeFixes(targetAvatar);
 
             EditorUtility.DisplayDialog("Fix Complete",
@@ -463,8 +494,27 @@ namespace XVR.Tools
             });
         }
 
-        private void WithUndo(System.Action action)
+        private void RunRollback()
         {
+            if (targetAvatar == null || !VtoolAvatarRollback.HasRollback(targetAvatar)) return;
+
+            if (!EditorUtility.DisplayDialog("Rollback Avatar",
+                "This replaces your avatar with the copy saved before Vtool changes.\n\n" +
+                "Texture import settings are restored too if they were changed.\n\nContinue?",
+                "Rollback", "Cancel"))
+                return;
+
+            targetAvatar = VtoolAvatarRollback.Restore(targetAvatar);
+            EditorUtility.DisplayDialog("Rollback Complete", "Avatar restored.", "OK");
+            Repaint();
+        }
+
+        private void WithUndo(System.Action action, bool trackTextures = false)
+        {
+            VtoolAvatarRollback.EnsureCapture(targetAvatar);
+            if (trackTextures)
+                VtoolAvatarRollback.RecordTextures(targetAvatar, VtoolAvatarFixes.CollectTextures(targetAvatar));
+
             Undo.RegisterFullObjectHierarchyUndo(targetAvatar, "Vtool Fix");
             action();
             VtoolAvatarFixes.MarkDirty();
@@ -473,6 +523,7 @@ namespace XVR.Tools
 
         private void BackupAvatar()
         {
+            VtoolAvatarRollback.Capture(targetAvatar);
             var backup = Instantiate(targetAvatar);
             backup.name = targetAvatar.name + "_Backup_" + System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
             backup.SetActive(false);
