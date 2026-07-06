@@ -50,15 +50,12 @@ namespace XVR.Tools
 
             Undo.RegisterFullObjectHierarchyUndo(avatar, "Vtool Fix All");
 
-            s.MissingScripts = RemoveMissingScripts(avatar);
-            s.MaterialSlots = FixMissingMaterials(avatar);
+            s.MaterialSlots = FixMissingMaterials(avatar, allowPlaceholder: false);
             s.PipelineManager = EnsurePipelineManager(avatar);
             s.Bounds = FixMeshBounds(avatar);
             s.Audio = FixAudioSources(avatar, out s.AudioPlayOnAwake);
-            s.Mipmaps = EnableTextureMipmaps(avatar);
-            s.OtherAvatarsDisabled = DisableOtherAvatars(avatar);
-            s.ViewPosition = AlignViewPosition(avatar);
-            s.LipSync = SetupLipSync(avatar);
+            s.ViewPosition = AlignViewPosition(avatar, onlyIfUnset: true);
+            s.LipSync = SetupLipSync(avatar, onlyIfUnset: true);
 
             MarkDirty();
             return s;
@@ -74,7 +71,7 @@ namespace XVR.Tools
             return n;
         }
 
-        public static int FixMissingMaterials(GameObject avatar)
+        public static int FixMissingMaterials(GameObject avatar, bool allowPlaceholder = false)
         {
             int fixedSlots = 0;
             var renderers = avatar.GetComponentsInChildren<Renderer>(true);
@@ -93,8 +90,13 @@ namespace XVR.Tools
                 for (int i = 0; i < newMats.Length; i++)
                 {
                     if (newMats[i] != null) continue;
-                    var fb = FindFallbackMaterial(newMats, i) ?? GetPlaceholderMaterial();
-                    if (fb == null) continue;
+                    var fb = FindFallbackMaterial(newMats, i);
+                    if (fb == null)
+                    {
+                        if (!allowPlaceholder) continue;
+                        fb = GetPlaceholderMaterial();
+                        if (fb == null) continue;
+                    }
                     newMats[i] = fb;
                     fixedSlots++;
                     changed = true;
@@ -103,12 +105,30 @@ namespace XVR.Tools
                 if (subCount > 0 && newMats.Length < subCount)
                 {
                     var expanded = new Material[subCount];
+                    bool expandedChanged = false;
                     for (int i = 0; i < subCount; i++)
-                        expanded[i] = i < newMats.Length && newMats[i] != null
-                            ? newMats[i]
-                            : FindFallbackMaterial(newMats, i) ?? GetPlaceholderMaterial();
-                    newMats = expanded;
-                    changed = true;
+                    {
+                        if (i < newMats.Length && newMats[i] != null)
+                        {
+                            expanded[i] = newMats[i];
+                            continue;
+                        }
+
+                        var fb = FindFallbackMaterial(newMats, i);
+                        if (fb == null && allowPlaceholder)
+                            fb = GetPlaceholderMaterial();
+                        if (fb == null) continue;
+
+                        expanded[i] = fb;
+                        fixedSlots++;
+                        expandedChanged = true;
+                    }
+
+                    if (expandedChanged)
+                    {
+                        newMats = expanded;
+                        changed = true;
+                    }
                 }
 
                 if (changed) r.sharedMaterials = newMats;
@@ -179,10 +199,20 @@ namespace XVR.Tools
             return n;
         }
 
-        public static bool AlignViewPosition(GameObject avatar)
+        public static bool AlignViewPosition(GameObject avatar, bool onlyIfUnset = false)
         {
             var anim = avatar.GetComponent<Animator>();
             if (anim == null || !anim.isHuman) return false;
+
+            var descType = GetDescriptorType();
+            var desc = descType != null ? avatar.GetComponent(descType) : null;
+            if (desc == null) return false;
+
+            if (onlyIfUnset &&
+                TryGetMember(desc, descType, "ViewPosition", out var existing) &&
+                existing is Vector3 current &&
+                current.sqrMagnitude > 0.0001f)
+                return false;
 
             var le = anim.GetBoneTransform(HumanBodyBones.LeftEye);
             var re = anim.GetBoneTransform(HumanBodyBones.RightEye);
@@ -202,21 +232,22 @@ namespace XVR.Tools
                 local.z += 0.08f;
             }
 
-            var descType = GetDescriptorType();
-            var desc = descType != null ? avatar.GetComponent(descType) : null;
-            if (desc == null) return false;
-
             Undo.RecordObject(desc, "View Position");
             if (!TrySetMember(desc, descType, "ViewPosition", local)) return false;
             EditorUtility.SetDirty(desc);
             return true;
         }
 
-        public static bool SetupLipSync(GameObject avatar)
+        public static bool SetupLipSync(GameObject avatar, bool onlyIfUnset = false)
         {
             var descType = GetDescriptorType();
             var desc = descType != null ? avatar.GetComponent(descType) : null;
             if (desc == null) return false;
+
+            if (onlyIfUnset &&
+                TryGetMember(desc, descType, "VisemeSkinnedMesh", out var existingMesh) &&
+                existingMesh != null)
+                return false;
 
             SkinnedMeshRenderer face = null;
             foreach (var smr in avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true))
@@ -254,14 +285,6 @@ namespace XVR.Tools
             if (!TrySetMember(pipeline, type, "blueprintId", string.Empty)) return false;
             EditorUtility.SetDirty(pipeline);
             return true;
-        }
-
-        public static void NormalizeRootScale(GameObject avatar)
-        {
-            if (avatar.transform.localScale == Vector3.one) return;
-            Undo.RecordObject(avatar.transform, "Normalize Scale");
-            avatar.transform.localScale = Vector3.one;
-            MarkDirty();
         }
 
         #endregion

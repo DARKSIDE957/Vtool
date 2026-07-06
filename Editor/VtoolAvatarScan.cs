@@ -187,9 +187,9 @@ namespace XVR.Tools
             if (!r.HasHumanoidAnimator)
                 r.Issues.Add(Issue(IssueSeverity.Blocker, "Missing humanoid Animator on avatar root", "Set rig to Humanoid in Import settings"));
             if (r.MissingScripts > 0)
-                r.Issues.Add(Issue(IssueSeverity.Blocker, $"{r.MissingScripts} missing script reference(s)", "Fix All removes them"));
+                r.Issues.Add(Issue(IssueSeverity.Blocker, $"{r.MissingScripts} missing script reference(s)", "Use Individual fixes (removes broken slots only)"));
             if (r.NullMaterialSlots > 0)
-                r.Issues.Add(Issue(IssueSeverity.Blocker, $"{r.NullMaterialSlots} null material slot(s)", "Fix All fills slots safely"));
+                r.Issues.Add(Issue(IssueSeverity.Blocker, $"{r.NullMaterialSlots} null material slot(s)", "Fix All copies a nearby material on the same renderer"));
             if (r.BrokenShaders > 0)
                 r.Issues.Add(Issue(IssueSeverity.Blocker, $"{r.BrokenShaders} broken shader(s) (pink materials)", "Reassign shaders manually"));
             if (r.MissingMeshes > 0)
@@ -203,9 +203,9 @@ namespace XVR.Tools
             if (!r.HasChestBone && r.HasHumanoidAnimator)
                 r.Issues.Add(Issue(IssueSeverity.Warning, "Humanoid rig missing Chest bone mapping", "Map Chest in Rig configuration"));
             if (!r.HasViewPosition)
-                r.Issues.Add(Issue(IssueSeverity.Warning, "View position not set on descriptor", "Fix All aligns to eyes"));
+                r.Issues.Add(Issue(IssueSeverity.Warning, "View position not set on descriptor", "Fix All sets it only when empty"));
             if (!r.HasLipSync)
-                r.Issues.Add(Issue(IssueSeverity.Warning, "Lip sync / visemes not configured", "Fix All sets up vrc.v_* blendshapes"));
+                r.Issues.Add(Issue(IssueSeverity.Warning, "Lip sync / visemes not configured", "Fix All sets it only when empty"));
             if (!r.RootScaleIsOne)
                 r.Issues.Add(Issue(IssueSeverity.Warning, "Avatar root scale is not (1,1,1)", "Can cause IK issues — normalize if needed"));
             if (r.NegativeScales > 0)
@@ -227,7 +227,7 @@ namespace XVR.Tools
             if (r.TextureMemoryMB > 150)
                 r.Issues.Add(Issue(IssueSeverity.Warning, $"High texture memory (~{r.TextureMemoryMB:F0} MB)", "Can fail security checks"));
             if (r.TexturesNoMipmaps > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.TexturesNoMipmaps} texture(s) missing mipmaps", "Fix All enables mipmaps"));
+                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.TexturesNoMipmaps} texture(s) missing mipmaps", "Use Textures tab"));
             if (r.LegacyDynamicBones > 0)
                 r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.LegacyDynamicBones} legacy Dynamic Bone(s)", "Migrate to PhysBones"));
             if (r.PhysBoneCount > 256)
@@ -239,7 +239,7 @@ namespace XVR.Tools
             if (r.ParticleCount > 16)
                 r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.ParticleCount} particle systems (16+ hurts performance)", "Reduce particle count"));
             if (r.OtherAvatarsInScene > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.OtherAvatarsInScene} other avatar(s) active in scene", "Fix All disables them"));
+                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.OtherAvatarsInScene} other avatar(s) active in scene", "Use Individual fixes to hide them"));
             if (r.QuestBadShaders > 0)
                 r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.QuestBadShaders} material(s) not Quest-compatible", "Use Quest conversion in Textures tab"));
             if (r.AvatarHeightMeters > MaxHeight || (r.AvatarHeightMeters > 0 && r.AvatarHeightMeters < MinHeight))

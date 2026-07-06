@@ -128,7 +128,7 @@ namespace XVR.Tools
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.LabelField(
-                "Back up your avatar first. Use at your own risk.",
+                "Fix All never deletes meshes, objects, or materials. Back up first.",
                 EditorStyles.centeredGreyMiniLabel);
         }
 
@@ -272,7 +272,7 @@ namespace XVR.Tools
             DrawSection("Quick actions", () =>
             {
                 EditorGUILayout.LabelField(
-                    "Safe fixes for scripts, materials, bounds, audio, view position, lip sync, and scene conflicts.",
+                    "Fix All only adds or adjusts settings. It does not remove GameObjects, meshes, or material slots.",
                     EditorStyles.wordWrappedMiniLabel);
                 GUILayout.Space(6);
 
@@ -282,7 +282,7 @@ namespace XVR.Tools
                 GUILayout.Space(4);
                 var prev = GUI.backgroundColor;
                 GUI.backgroundColor = scan.BlockerCount > 0 ? new Color(0.28f, 0.72f, 0.38f) : new Color(0.4f, 0.55f, 0.45f);
-                if (GUILayout.Button("Fix All Upload Errors", GUILayout.Height(36)))
+                if (GUILayout.Button("Fix All Safe Upload Errors", GUILayout.Height(36)))
                     RunFixAll();
                 GUI.backgroundColor = prev;
 
@@ -291,16 +291,24 @@ namespace XVR.Tools
                 if (showIndividualFixes)
                 {
                     EditorGUI.indentLevel++;
-                    if (GUILayout.Button("Remove missing scripts")) WithUndo(() => VtoolAvatarFixes.RemoveMissingScripts(targetAvatar));
-                    if (GUILayout.Button("Fix missing material slots")) WithUndo(() => VtoolAvatarFixes.FixMissingMaterials(targetAvatar));
+                    if (GUILayout.Button("Fix missing material slots (nearby material only)"))
+                        WithUndo(() => VtoolAvatarFixes.FixMissingMaterials(targetAvatar, allowPlaceholder: false));
                     if (GUILayout.Button("Add PipelineManager")) WithUndo(() => VtoolAvatarFixes.EnsurePipelineManager(targetAvatar));
                     if (GUILayout.Button("Fix skinned mesh bounds")) WithUndo(() => VtoolAvatarFixes.FixMeshBounds(targetAvatar));
                     if (GUILayout.Button("Fix audio (3D, volume, playOnAwake)")) WithUndo(() => { int p; VtoolAvatarFixes.FixAudioSources(targetAvatar, out p); });
-                    if (GUILayout.Button("Disable other avatars in scene")) WithUndo(() => VtoolAvatarFixes.DisableOtherAvatars(targetAvatar));
-                    if (GUILayout.Button("Align view position")) WithUndo(() => VtoolAvatarFixes.AlignViewPosition(targetAvatar));
-                    if (GUILayout.Button("Setup lip sync")) WithUndo(() => VtoolAvatarFixes.SetupLipSync(targetAvatar));
-                    if (GUILayout.Button("Clear blueprint ID (new upload)")) WithUndo(() => VtoolAvatarFixes.ClearBlueprintId(targetAvatar));
-                    if (GUILayout.Button("Normalize root scale (1,1,1) — changes size")) WithUndo(() => VtoolAvatarFixes.NormalizeRootScale(targetAvatar));
+                    if (GUILayout.Button("Align view position (only if empty)")) WithUndo(() => VtoolAvatarFixes.AlignViewPosition(targetAvatar, onlyIfUnset: true));
+                    if (GUILayout.Button("Setup lip sync (only if empty)")) WithUndo(() => VtoolAvatarFixes.SetupLipSync(targetAvatar, onlyIfUnset: true));
+
+                    EditorGUILayout.Space(4);
+                    EditorGUILayout.LabelField("Optional / changes more", EditorStyles.miniLabel);
+                    if (GUILayout.Button("Remove missing script slots"))
+                        RunRemoveMissingScripts();
+                    if (GUILayout.Button("Fix materials with placeholder (last resort)"))
+                        RunPlaceholderMaterials();
+                    if (GUILayout.Button("Disable other avatars in scene"))
+                        RunDisableOtherAvatars();
+                    if (GUILayout.Button("Clear blueprint ID (new upload)"))
+                        RunClearBlueprintId();
                     EditorGUI.indentLevel--;
                 }
             });
@@ -343,7 +351,10 @@ namespace XVR.Tools
                 }
 
                 if (GUILayout.Button("Enable mipmaps", GUILayout.Height(24)))
-                    WithUndo(() => VtoolAvatarFixes.EnableTextureMipmaps(targetAvatar));
+                {
+                    if (EditorUtility.DisplayDialog("Enable Mipmaps", "Changes texture import settings for textures on this avatar. Continue?", "Enable", "Cancel"))
+                        WithUndo(() => VtoolAvatarFixes.EnableTextureMipmaps(targetAvatar));
+                }
             });
 
             DrawSection("Quest / Android", () =>
@@ -372,24 +383,84 @@ namespace XVR.Tools
         private void RunFixAll()
         {
             if (!EditorUtility.DisplayDialog("Fix All",
-                "Applies all safe pre-upload fixes.\n\nBack up first. Continue?", "Fix", "Cancel"))
+                "Applies safe fixes only.\n\n" +
+                "Does NOT remove scripts, meshes, objects, or materials.\n" +
+                "Does NOT change view position or lip sync if already set.\n\n" +
+                "Back up first. Continue?", "Fix", "Cancel"))
                 return;
 
             var s = VtoolAvatarFixes.ApplyAllSafeFixes(targetAvatar);
 
             EditorUtility.DisplayDialog("Fix Complete",
-                $"Missing scripts removed: {s.MissingScripts}\n" +
                 $"Material slots fixed: {s.MaterialSlots}\n" +
                 $"PipelineManager added: {(s.PipelineManager ? "yes" : "no")}\n" +
                 $"Bounds fixed: {s.Bounds}\n" +
                 $"Audio fixed: {s.Audio} (playOnAwake: {s.AudioPlayOnAwake})\n" +
-                $"Mipmaps enabled: {s.Mipmaps}\n" +
-                $"Other avatars disabled: {s.OtherAvatarsDisabled}\n" +
-                $"View position: {(s.ViewPosition ? "OK" : "skipped")}\n" +
-                $"Lip sync: {(s.LipSync ? "OK" : "skipped")}\n\n" +
+                $"View position: {(s.ViewPosition ? "set" : "skipped")}\n" +
+                $"Lip sync: {(s.LipSync ? "set" : "skipped")}\n\n" +
                 "Re-check the Check tab. Fix pink/broken shaders manually.",
                 "OK");
             Repaint();
+        }
+
+        private void RunRemoveMissingScripts()
+        {
+            if (!EditorUtility.DisplayDialog("Remove Missing Scripts",
+                "This removes broken empty script slots from GameObjects.\n\n" +
+                "It does NOT delete meshes or child objects.\n" +
+                "Only use if you know those scripts are gone for good.\n\nContinue?",
+                "Remove", "Cancel"))
+                return;
+
+            WithUndo(() =>
+            {
+                int n = VtoolAvatarFixes.RemoveMissingScripts(targetAvatar);
+                EditorUtility.DisplayDialog("Done", $"Removed {n} missing script slot(s).", "OK");
+            });
+        }
+
+        private void RunPlaceholderMaterials()
+        {
+            if (!EditorUtility.DisplayDialog("Placeholder Materials",
+                "Fills empty material slots with a gray placeholder.\n\n" +
+                "This can change how parts look. Prefer fixing materials manually.\n\nContinue?",
+                "Continue", "Cancel"))
+                return;
+
+            WithUndo(() =>
+            {
+                int n = VtoolAvatarFixes.FixMissingMaterials(targetAvatar, allowPlaceholder: true);
+                EditorUtility.DisplayDialog("Done", $"Filled {n} slot(s).", "OK");
+            });
+        }
+
+        private void RunDisableOtherAvatars()
+        {
+            if (!EditorUtility.DisplayDialog("Disable Other Avatars",
+                "Hides other avatar roots in this scene.\n\n" +
+                "Your selected avatar is not changed.\n\nContinue?",
+                "Disable", "Cancel"))
+                return;
+
+            WithUndo(() =>
+            {
+                int n = VtoolAvatarFixes.DisableOtherAvatars(targetAvatar);
+                EditorUtility.DisplayDialog("Done", $"Disabled {n} other avatar(s).", "OK");
+            });
+        }
+
+        private void RunClearBlueprintId()
+        {
+            if (!EditorUtility.DisplayDialog("Clear Blueprint ID",
+                "Clears the PipelineManager blueprint ID for a fresh upload.\n\nContinue?",
+                "Clear", "Cancel"))
+                return;
+
+            WithUndo(() =>
+            {
+                bool ok = VtoolAvatarFixes.ClearBlueprintId(targetAvatar);
+                EditorUtility.DisplayDialog("Done", ok ? "Blueprint ID cleared." : "Nothing to clear.", "OK");
+            });
         }
 
         private void WithUndo(System.Action action)

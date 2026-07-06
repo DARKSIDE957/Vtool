@@ -6,17 +6,17 @@
   "packages": {
     "com.vtool.autofixer": {
       "versions": {
-        "2.1.3": {
+        "2.1.4": {
           "name": "com.vtool.autofixer",
           "displayName": "Vtool Avatar Auto-Fixer Pro",
-          "version": "2.1.3",
+          "version": "2.1.4",
           "description": "Pre-upload VRChat avatar fixer — diagnoses and fixes the most common upload errors plus texture reduction.",
           "unity": "2022.3",
           "author": {
             "name": "DARKSIDE957",
             "email": "contact@vtool.local"
           },
-          "url": "https://github.com/DARKSIDE957/Vtool/releases/download/v2.1.3/com.vtool.autofixer-2.1.3.zip",
+          "url": "https://github.com/DARKSIDE957/Vtool/releases/download/v2.1.4/com.vtool.autofixer-2.1.4.zip",
           "vpmDependencies": {
             "com.vrchat.avatars": "^3.0.0"
           }

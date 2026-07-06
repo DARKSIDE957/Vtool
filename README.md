@@ -46,9 +46,9 @@ Poly count, textures, VRChat setup, PhysBones, audio, Quest shaders, and more.
 <td width="33%" valign="top">
 
 ### Fix
-Safe one-click fixes for upload errors.
+Safe one-click fixes. No mesh or object removal.
 
-Scripts, materials, bounds, audio, lip sync, view position, PipelineManager, scene conflicts.
+Scripts, materials, bounds, audio, lip sync, view position, PipelineManager.
 
 </td>
 <td width="33%" valign="top">
@@ -88,7 +88,7 @@ https://raw.githubusercontent.com/DARKSIDE957/Vtool/main/index.json
 1. Drop your **avatar root** into the tool (or **Auto-Detect**)
 2. **Check** tab: read what failed
 3. **Backup Avatar** (do this first)
-4. **Fix** tab: **Fix All Upload Errors**
+4. **Fix** tab: **Fix All Safe Upload Errors**
 5. **Textures** tab: only if you need smaller textures or Quest shaders
 6. Upload through the **VRChat SDK**
 
@@ -126,15 +126,16 @@ https://raw.githubusercontent.com/DARKSIDE957/Vtool/main/index.json
 <details>
 <summary><b>What Fix All changes</b></summary>
 
-- Removes missing scripts
-- Fills null material slots (keeps slot order, hair-safe)
+Fix All is conservative. It does **not** delete meshes, GameObjects, or material slots.
+
+- Fills null material slots using a nearby material on the same renderer
 - Adds `PipelineManager` if missing
 - Fixes skinned mesh bounds
 - Fixes audio (3D, volume, play on awake)
-- Enables mipmaps
-- Disables other avatars in the scene
-- Aligns view position
-- Sets up lip sync
+- Sets view position **only if empty**
+- Sets lip sync **only if empty**
+
+Missing scripts, mipmaps, scene avatars, and placeholder materials are under **Individual fixes** with a confirmation dialog.
 
 Pink shaders still need manual reassignment.
 
