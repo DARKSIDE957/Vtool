@@ -196,6 +196,10 @@ namespace XVR.Tools
                 r.Issues.Add(Issue(IssueSeverity.Blocker, $"{r.MissingMeshes} renderer(s) with missing mesh", "Reassign or remove broken renderers"));
             if (r.PolyCount > 200000)
                 r.Issues.Add(Issue(IssueSeverity.Blocker, $"Extreme polygon count ({r.PolyCount:N0})", "Reduce in Blender or decimate"));
+            if (r.PhysBoneCount > 256)
+                r.Issues.Add(Issue(IssueSeverity.Blocker,
+                    $"Phys Bone Components: {r.PhysBoneCount} — exceeds VRChat limit (256)",
+                    "Use Individual fixes → Reduce PhysBones to 256 (removes PhysBone scripts only, never GameObjects/meshes)"));
         }
 
         private static void AddWarnings(ref AvatarScanResult r)
@@ -230,8 +234,8 @@ namespace XVR.Tools
                 r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.TexturesNoMipmaps} texture(s) missing mipmaps", "Use Textures tab"));
             if (r.LegacyDynamicBones > 0)
                 r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.LegacyDynamicBones} legacy Dynamic Bone(s)", "Migrate to PhysBones"));
-            if (r.PhysBoneCount > 256)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.PhysBoneCount} PhysBones (256+ is Very Poor)", "Reduce PhysBone count"));
+            if (r.PhysBoneCount > 32 && r.PhysBoneCount <= 256)
+                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.PhysBoneCount} PhysBones (32+ is Very Poor on PC)", "Consider combining or reducing PhysBones"));
             if (r.BadAudioCount > 0)
                 r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.BadAudioCount} audio source(s) need 3D spatialization", "Fix All corrects audio"));
             if (r.AudioPlayOnAwake > 0)

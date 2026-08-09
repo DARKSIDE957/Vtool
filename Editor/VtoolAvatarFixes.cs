@@ -276,6 +276,82 @@ namespace XVR.Tools
             return true;
         }
 
+        // Removes excess VRCPhysBone scripts only — never GameObjects, meshes, or bones.
+        public static int ReducePhysBoneComponents(GameObject avatar, int limit = 256)
+        {
+            if (avatar == null || limit < 0) return 0;
+
+            var type = GetTypeSafe("VRC.SDK3.Dynamics.PhysBone.Components.VRCPhysBone");
+            if (type == null) return 0;
+
+            var components = avatar.GetComponentsInChildren(type, true)
+                .Cast<Component>()
+                .Where(c => c != null)
+                .ToList();
+
+            int excess = components.Count - limit;
+            if (excess <= 0) return 0;
+
+            var humanoidBones = CollectHumanoidBones(avatar);
+            var ordered = components
+                .OrderByDescending(c => PhysBoneRemovalPriority(c, humanoidBones))
+                .ThenBy(c => HierarchyPath(c.transform), System.StringComparer.Ordinal)
+                .ToList();
+
+            int removed = 0;
+            for (int i = 0; i < excess && i < ordered.Count; i++)
+            {
+                var c = ordered[i];
+                if (c == null) continue;
+                Undo.DestroyObjectImmediate(c);
+                removed++;
+            }
+
+            return removed;
+        }
+
+        private static HashSet<Transform> CollectHumanoidBones(GameObject avatar)
+        {
+            var set = new HashSet<Transform>();
+            var anim = avatar != null ? avatar.GetComponent<Animator>() : null;
+            if (anim == null || !anim.isHuman) return set;
+
+            foreach (HumanBodyBones bone in System.Enum.GetValues(typeof(HumanBodyBones)))
+            {
+                if (bone == HumanBodyBones.LastBone) continue;
+                var t = anim.GetBoneTransform(bone);
+                if (t != null) set.Add(t);
+            }
+            return set;
+        }
+
+        private static int PhysBoneRemovalPriority(Component c, HashSet<Transform> humanoidBones)
+        {
+            int score = 0;
+            if (!c.gameObject.activeInHierarchy) score += 10000;
+            if (!c.gameObject.activeSelf) score += 1000;
+
+            int depth = 0;
+            for (var t = c.transform; t != null; t = t.parent) depth++;
+            score += depth;
+
+            // Keep PhysBones on the humanoid skeleton when possible
+            if (humanoidBones != null && humanoidBones.Contains(c.transform))
+                score -= 5000;
+
+            return score;
+        }
+
+        private static string HierarchyPath(Transform t)
+        {
+            if (t == null) return string.Empty;
+            var parts = new List<string>();
+            for (var cur = t; cur != null; cur = cur.parent)
+                parts.Add(cur.name);
+            parts.Reverse();
+            return string.Join("/", parts);
+        }
+
         public static bool ClearBlueprintId(GameObject avatar)
         {
             var pipeline = GetPipelineManager(avatar);

@@ -258,7 +258,8 @@ namespace XVR.Tools
                 Stat("Material slots", scan.MaterialSlots.ToString(), scan.MaterialSlots > 16 ? warnStyle : null);
                 Stat("Bones", scan.BoneCount.ToString());
                 Stat("Height", $"{scan.AvatarHeightMeters:F2} m");
-                Stat("PhysBones", scan.PhysBoneCount.ToString(), scan.PhysBoneCount > 256 ? warnStyle : null);
+                Stat("PhysBones", scan.PhysBoneCount.ToString(),
+                    scan.PhysBoneCount > 256 ? errStyle : scan.PhysBoneCount > 32 ? warnStyle : null);
                 Stat("Particles", scan.ParticleCount.ToString(), scan.ParticleCount > 16 ? warnStyle : null);
             });
 
@@ -325,6 +326,16 @@ namespace XVR.Tools
 
                     EditorGUILayout.Space(4);
                     EditorGUILayout.LabelField("Optional / changes more", EditorStyles.miniLabel);
+                    if (scan.PhysBoneCount > 256)
+                    {
+                        var prevPb = GUI.backgroundColor;
+                        GUI.backgroundColor = new Color(0.85f, 0.35f, 0.3f);
+                        if (GUILayout.Button($"Reduce PhysBones to 256 ({scan.PhysBoneCount} → 256)"))
+                            RunReducePhysBones();
+                        GUI.backgroundColor = prevPb;
+                    }
+                    else if (GUILayout.Button("Reduce PhysBones to 256"))
+                        RunReducePhysBones();
                     if (GUILayout.Button("Remove missing script slots"))
                         RunRemoveMissingScripts();
                     if (GUILayout.Button("Fix materials with placeholder (last resort)"))
@@ -432,6 +443,42 @@ namespace XVR.Tools
                 "Re-check the Check tab. Fix pink/broken shaders manually.",
                 "OK");
             Repaint();
+        }
+
+        private void RunReducePhysBones()
+        {
+            int count = VtoolAvatarScan.Scan(targetAvatar).PhysBoneCount;
+            int excess = count - 256;
+            if (excess <= 0)
+            {
+                EditorUtility.DisplayDialog("PhysBones",
+                    $"This avatar has {count} PhysBone component(s), which is within the 256 limit.",
+                    "OK");
+                return;
+            }
+
+            if (!EditorUtility.DisplayDialog("Reduce PhysBones",
+                $"VRChat blocks upload above 256 PhysBone components.\n\n" +
+                $"Current: {count}\n" +
+                $"Will remove: {excess} PhysBone script(s)\n" +
+                $"Will keep: 256\n\n" +
+                "SAFETY:\n" +
+                "• Does NOT delete GameObjects, bones, meshes, or the face\n" +
+                "• Only removes excess VRCPhysBone components (scripts)\n" +
+                "• Prefers inactive / deeper accessory bones first\n" +
+                "• A rollback copy is saved first\n\nContinue?",
+                "Reduce", "Cancel"))
+                return;
+
+            WithUndo(() =>
+            {
+                int n = VtoolAvatarFixes.ReducePhysBoneComponents(targetAvatar, 256);
+                EditorUtility.DisplayDialog("Done",
+                    $"Removed {n} PhysBone component(s).\n" +
+                    "Bones and meshes are unchanged.\n" +
+                    "Use Rollback Avatar if you need to undo.",
+                    "OK");
+            });
         }
 
         private void RunRemoveMissingScripts()

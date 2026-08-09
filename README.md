@@ -107,6 +107,7 @@ https://raw.githubusercontent.com/DARKSIDE957/Vtool/main/index.json
 - Broken shaders (pink materials)
 - Missing meshes
 - Extreme polygon count
+- Over 256 PhysBone components (VRChat hard limit)
 
 </details>
 
@@ -136,7 +137,7 @@ Fix All is conservative. It does **not** delete meshes, GameObjects, or material
 - Sets view position **only if empty**
 - Sets lip sync **only if empty**
 
-Missing scripts, mipmaps, scene avatars, and placeholder materials are under **Individual fixes** with a confirmation dialog.
+Missing scripts, excess PhysBones (scripts only — never GameObjects/meshes), mipmaps, scene avatars, and placeholder materials are under **Individual fixes** with a confirmation dialog.
 
 Pink shaders still need manual reassignment.
 
