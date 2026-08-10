@@ -17,11 +17,9 @@ namespace XVR.Tools
         private bool showIndividualFixes;
         private Texture2D logoTexture;
 
-        private GUIStyle headerStyle, subStyle, sectionStyle, panelStyle;
+        private GUIStyle headerStyle, subStyle, sectionStyle, panelStyle, captionStyle;
         private GUIStyle okStyle, warnStyle, errStyle, linkStyle;
         private bool stylesReady;
-
-        private readonly string[] tabs = { "Check", "Fix", "Textures" };
 
         [MenuItem("Vtool/Avatar Auto-Fixer Pro")]
         public static void ShowWindow()
@@ -51,14 +49,19 @@ namespace XVR.Tools
 
             if (targetAvatar == null)
             {
-                EditorGUILayout.HelpBox("Assign an avatar root to run checks and fixes.", MessageType.Info);
+                EditorGUILayout.HelpBox(L.T("assign.avatar"), MessageType.Info);
                 DrawSupportFooter();
                 EditorGUILayout.EndScrollView();
                 return;
             }
 
             GUILayout.Space(8);
-            tabIndex = GUILayout.Toolbar(tabIndex, tabs, GUILayout.Height(26));
+            tabIndex = GUILayout.Toolbar(tabIndex, new[]
+            {
+                L.T("tab.check"),
+                L.T("tab.fix"),
+                L.T("tab.textures")
+            }, GUILayout.Height(26));
             GUILayout.Space(8);
 
             var scan = VtoolAvatarScan.Scan(targetAvatar);
@@ -85,6 +88,7 @@ namespace XVR.Tools
             subStyle = new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = Muted }, margin = new RectOffset(0, 0, 0, 0) };
             sectionStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 12, margin = new RectOffset(0, 0, 4, 6) };
             panelStyle = new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(12, 12, 10, 10), margin = new RectOffset(4, 4, 4, 4) };
+            captionStyle = new GUIStyle(EditorStyles.wordWrappedMiniLabel) { normal = { textColor = Muted } };
             okStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.35f, 0.82f, 0.48f) } };
             warnStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(1f, 0.68f, 0.2f) } };
             errStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.95f, 0.35f, 0.35f) } };
@@ -118,8 +122,20 @@ namespace XVR.Tools
                 GUILayout.Label(logoTexture, GUILayout.Width(48), GUILayout.Height(48));
 
             EditorGUILayout.BeginVertical();
-            GUILayout.Label("Pre-Upload Fixer", headerStyle);
-            GUILayout.Label("VRChat avatar checks & safe fixes", subStyle);
+            GUILayout.Label(L.T("header.title"), headerStyle);
+            GUILayout.Label(L.T("header.subtitle"), subStyle);
+            EditorGUILayout.EndVertical();
+
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.BeginVertical(GUILayout.Width(160));
+            GUILayout.Label(L.T("lang.label"), EditorStyles.miniLabel);
+            int lang = (int)L.Language;
+            int next = EditorGUILayout.Popup(lang, L.LanguageDisplayNames);
+            if (next != lang)
+            {
+                L.Language = (VtoolLanguage)next;
+                Repaint();
+            }
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.EndHorizontal();
@@ -128,9 +144,7 @@ namespace XVR.Tools
             EditorGUI.DrawRect(line, Accent);
             EditorGUILayout.EndVertical();
 
-            EditorGUILayout.LabelField(
-                "Fix All never deletes meshes, objects, or materials. Rollback saves before fixes.",
-                EditorStyles.centeredGreyMiniLabel);
+            EditorGUILayout.LabelField(L.T("header.safety"), EditorStyles.centeredGreyMiniLabel);
         }
 
         private void DrawSupportFooter()
@@ -138,7 +152,7 @@ namespace XVR.Tools
             GUILayout.Space(6);
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("☕ Support on Buy Me a Coffee", linkStyle))
+            if (GUILayout.Button(new GUIContent("☕ " + L.T("support.coffee")), linkStyle))
                 Application.OpenURL(SupportUrl);
             EditorGUILayout.EndHorizontal();
             GUILayout.Space(4);
@@ -147,24 +161,24 @@ namespace XVR.Tools
         private void DrawUpdateBanner()
         {
             if (!VtoolPackageUpdateHandler.HasPendingUpdate) return;
-            EditorGUILayout.HelpBox("Update detected. Reloading...", MessageType.Info);
-            if (GUILayout.Button("Apply Update Now"))
+            EditorGUILayout.HelpBox(L.T("update.detected"), MessageType.Info);
+            if (GUILayout.Button(L.T("btn.apply_update")))
                 VtoolPackageUpdateHandler.CheckForPackageUpdate(silent: false, force: true);
         }
 
         private void DrawAvatarPicker()
         {
             EditorGUILayout.BeginVertical(panelStyle);
-            targetAvatar = (GameObject)EditorGUILayout.ObjectField("Avatar", targetAvatar, typeof(GameObject), true);
+            targetAvatar = (GameObject)EditorGUILayout.ObjectField(L.T("field.avatar"), targetAvatar, typeof(GameObject), true);
 
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Use Selected", GUILayout.Width(100)))
+            if (GUILayout.Button(new GUIContent(L.T("btn.use_selected"), L.T("tip.use_selected")), GUILayout.Width(120)))
             {
                 if (Selection.activeGameObject != null)
                     targetAvatar = Selection.activeGameObject;
             }
-            if (GUILayout.Button("Auto-Detect", GUILayout.Width(100)))
+            if (GUILayout.Button(new GUIContent(L.T("btn.auto_detect"), L.T("tip.auto_detect")), GUILayout.Width(120)))
                 AutoDetectAvatar();
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndVertical();
@@ -175,12 +189,13 @@ namespace XVR.Tools
             if (targetAvatar == null || !VtoolAvatarRollback.HasRollback(targetAvatar)) return;
 
             EditorGUILayout.BeginVertical(panelStyle);
-            EditorGUILayout.LabelField("Rollback point saved from before Vtool changes.", EditorStyles.wordWrappedMiniLabel);
+            EditorGUILayout.LabelField(L.T("rollback.banner"), EditorStyles.wordWrappedMiniLabel);
             var prev = GUI.backgroundColor;
             GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
-            if (GUILayout.Button("Rollback Avatar", GUILayout.Height(30)))
+            if (GUILayout.Button(new GUIContent(L.T("btn.rollback"), L.T("tip.rollback")), GUILayout.Height(30)))
                 RunRollback();
             GUI.backgroundColor = prev;
+            Caption("cap.rollback");
             EditorGUILayout.EndVertical();
         }
 
@@ -195,9 +210,28 @@ namespace XVR.Tools
         private void Stat(string label, string value, GUIStyle style = null)
         {
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label(label, GUILayout.Width(130));
+            GUILayout.Label(label, GUILayout.Width(150));
             GUILayout.Label(value, style ?? EditorStyles.label);
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void Caption(string key)
+        {
+            EditorGUILayout.LabelField(L.T(key), captionStyle);
+            GUILayout.Space(2);
+        }
+
+        private bool ActionButton(string labelKey, string tipKey, string capKey = null, float height = 0f)
+        {
+            var content = new GUIContent(L.T(labelKey), L.T(tipKey));
+            bool clicked = height > 0f
+                ? GUILayout.Button(content, GUILayout.Height(height))
+                : GUILayout.Button(content);
+
+            if (!string.IsNullOrEmpty(capKey))
+                Caption(capKey);
+
+            return clicked;
         }
 
         private void IssueRow(AvatarIssue issue)
@@ -222,7 +256,7 @@ namespace XVR.Tools
 
         private void DrawCheckTab(AvatarScanResult scan)
         {
-            DrawSection("Status", () =>
+            DrawSection(L.T("sec.status"), () =>
             {
                 EditorGUILayout.HelpBox(scan.Summary,
                     scan.BlockerCount > 0 ? MessageType.Error : scan.WarningCount > 0 ? MessageType.Warning : MessageType.Info);
@@ -230,7 +264,7 @@ namespace XVR.Tools
 
             if (scan.BlockerCount > 0)
             {
-                DrawSection($"Blockers ({scan.BlockerCount})", () =>
+                DrawSection(L.TF("sec.blockers", scan.BlockerCount), () =>
                 {
                     foreach (var i in scan.Issues)
                         if (i.Severity == IssueSeverity.Blocker) IssueRow(i);
@@ -239,7 +273,7 @@ namespace XVR.Tools
 
             if (scan.WarningCount > 0)
             {
-                DrawSection($"Warnings ({scan.WarningCount})", () =>
+                DrawSection(L.TF("sec.warnings", scan.WarningCount), () =>
                 {
                     foreach (var i in scan.Issues)
                         if (i.Severity == IssueSeverity.Warning) IssueRow(i);
@@ -248,101 +282,108 @@ namespace XVR.Tools
 
             if (scan.BlockerCount == 0 && scan.WarningCount == 0)
             {
-                DrawSection("Result", () => GUILayout.Label("All common checks passed.", okStyle));
+                DrawSection(L.T("sec.result"), () => GUILayout.Label(L.T("result.all_ok"), okStyle));
             }
 
-            DrawSection("Performance", () =>
+            DrawSection(L.T("sec.performance"), () =>
             {
-                Stat("Polygons", scan.PolyCount.ToString("N0"), scan.PolyCount > 70000 ? warnStyle : null);
-                Stat("Skinned meshes", scan.SkinnedMeshCount.ToString(), scan.SkinnedMeshCount > 8 ? warnStyle : null);
-                Stat("Material slots", scan.MaterialSlots.ToString(), scan.MaterialSlots > 16 ? warnStyle : null);
-                Stat("Bones", scan.BoneCount.ToString());
-                Stat("Height", $"{scan.AvatarHeightMeters:F2} m");
-                Stat("PhysBones", scan.PhysBoneCount.ToString(),
+                Stat(L.T("stat.polygons"), scan.PolyCount.ToString("N0"), scan.PolyCount > 70000 ? warnStyle : null);
+                Stat(L.T("stat.skinned"), scan.SkinnedMeshCount.ToString(), scan.SkinnedMeshCount > 8 ? warnStyle : null);
+                Stat(L.T("stat.mat_slots"), scan.MaterialSlots.ToString(), scan.MaterialSlots > 16 ? warnStyle : null);
+                Stat(L.T("stat.bones"), scan.BoneCount.ToString());
+                Stat(L.T("stat.height"), $"{scan.AvatarHeightMeters:F2} m");
+                Stat(L.T("stat.physbones"), scan.PhysBoneCount.ToString(),
                     scan.PhysBoneCount > 256 ? errStyle : scan.PhysBoneCount > 32 ? warnStyle : null);
-                Stat("Particles", scan.ParticleCount.ToString(), scan.ParticleCount > 16 ? warnStyle : null);
+                Stat(L.T("stat.particles"), scan.ParticleCount.ToString(), scan.ParticleCount > 16 ? warnStyle : null);
             });
 
-            DrawSection("VRChat", () =>
+            DrawSection(L.T("sec.vrchat"), () =>
             {
-                Stat("Descriptor", scan.HasDescriptor ? "OK" : "Missing", scan.HasDescriptor ? okStyle : errStyle);
-                Stat("PipelineManager", scan.HasPipelineManager ? "OK" : "Missing", scan.HasPipelineManager ? okStyle : errStyle);
-                Stat("Humanoid rig", scan.HasHumanoidAnimator ? "OK" : "Missing", scan.HasHumanoidAnimator ? okStyle : errStyle);
-                Stat("Chest bone", scan.HasChestBone ? "OK" : "Missing", scan.HasChestBone ? okStyle : warnStyle);
-                Stat("View position", scan.HasViewPosition ? "OK" : "Not set", scan.HasViewPosition ? okStyle : warnStyle);
-                Stat("Lip sync", scan.HasLipSync ? "OK" : "Not set", scan.HasLipSync ? okStyle : warnStyle);
+                Stat(L.T("stat.descriptor"), scan.HasDescriptor ? L.T("stat.ok") : L.T("stat.missing"), scan.HasDescriptor ? okStyle : errStyle);
+                Stat(L.T("stat.pipeline"), scan.HasPipelineManager ? L.T("stat.ok") : L.T("stat.missing"), scan.HasPipelineManager ? okStyle : errStyle);
+                Stat(L.T("stat.humanoid"), scan.HasHumanoidAnimator ? L.T("stat.ok") : L.T("stat.missing"), scan.HasHumanoidAnimator ? okStyle : errStyle);
+                Stat(L.T("stat.chest"), scan.HasChestBone ? L.T("stat.ok") : L.T("stat.missing"), scan.HasChestBone ? okStyle : warnStyle);
+                Stat(L.T("stat.view"), scan.HasViewPosition ? L.T("stat.ok") : L.T("stat.not_set"), scan.HasViewPosition ? okStyle : warnStyle);
+                Stat(L.T("stat.lipsync"), scan.HasLipSync ? L.T("stat.ok") : L.T("stat.not_set"), scan.HasLipSync ? okStyle : warnStyle);
             });
 
-            DrawSection("Textures", () =>
+            DrawSection(L.T("sec.textures"), () =>
             {
-                Stat("Count", scan.TextureCount.ToString());
-                Stat("4K+", scan.Textures4K.ToString(), scan.Textures4K > 0 ? errStyle : okStyle);
-                Stat("Over 2K", scan.TexturesOver2K.ToString(), scan.TexturesOver2K > 0 ? warnStyle : okStyle);
-                Stat("Est. memory", $"~{scan.TextureMemoryMB:F0} MB", scan.TextureMemoryMB > 100 ? warnStyle : null);
-                Stat("No mipmaps", scan.TexturesNoMipmaps.ToString(), scan.TexturesNoMipmaps > 0 ? warnStyle : okStyle);
+                Stat(L.T("stat.count"), scan.TextureCount.ToString());
+                Stat(L.T("stat.4k"), scan.Textures4K.ToString(), scan.Textures4K > 0 ? errStyle : okStyle);
+                Stat(L.T("stat.over2k"), scan.TexturesOver2K.ToString(), scan.TexturesOver2K > 0 ? warnStyle : okStyle);
+                Stat(L.T("stat.memory"), $"~{scan.TextureMemoryMB:F0} MB", scan.TextureMemoryMB > 100 ? warnStyle : null);
+                Stat(L.T("stat.nomip"), scan.TexturesNoMipmaps.ToString(), scan.TexturesNoMipmaps > 0 ? warnStyle : okStyle);
             });
         }
 
         private void DrawFixTab(AvatarScanResult scan)
         {
-            DrawSection("Quick actions", () =>
+            DrawSection(L.T("sec.quick"), () =>
             {
-                EditorGUILayout.LabelField(
-                    "Fix All only adds or adjusts settings. It does not remove GameObjects, meshes, or material slots.",
-                    EditorStyles.wordWrappedMiniLabel);
+                EditorGUILayout.LabelField(L.T("fix.intro"), EditorStyles.wordWrappedMiniLabel);
                 GUILayout.Space(6);
 
-                if (GUILayout.Button("Backup Avatar", GUILayout.Height(28)))
+                if (ActionButton("btn.backup", "tip.backup", "cap.backup", 28f))
                     BackupAvatar();
 
                 if (VtoolAvatarRollback.HasRollback(targetAvatar))
                 {
                     var prevRollback = GUI.backgroundColor;
                     GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
-                    if (GUILayout.Button("Rollback Avatar", GUILayout.Height(28)))
+                    if (GUILayout.Button(new GUIContent(L.T("btn.rollback"), L.T("tip.rollback")), GUILayout.Height(28)))
                         RunRollback();
                     GUI.backgroundColor = prevRollback;
+                    Caption("cap.rollback");
                 }
 
                 GUILayout.Space(4);
                 var prev = GUI.backgroundColor;
                 GUI.backgroundColor = scan.BlockerCount > 0 ? new Color(0.28f, 0.72f, 0.38f) : new Color(0.4f, 0.55f, 0.45f);
-                if (GUILayout.Button("Fix All Safe Upload Errors", GUILayout.Height(36)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.fix_all"), L.T("tip.fix_all")), GUILayout.Height(36)))
                     RunFixAll();
                 GUI.backgroundColor = prev;
+                Caption("cap.fix_all");
 
                 GUILayout.Space(6);
-                showIndividualFixes = EditorGUILayout.Foldout(showIndividualFixes, "Individual fixes", true);
+                showIndividualFixes = EditorGUILayout.Foldout(showIndividualFixes, L.T("fold.individual"), true);
                 if (showIndividualFixes)
                 {
                     EditorGUI.indentLevel++;
-                    if (GUILayout.Button("Fix missing material slots (nearby material only)"))
+                    if (ActionButton("btn.fix_mats", "tip.fix_mats"))
                         WithUndo(() => VtoolAvatarFixes.FixMissingMaterials(targetAvatar, allowPlaceholder: false));
-                    if (GUILayout.Button("Add PipelineManager")) WithUndo(() => VtoolAvatarFixes.EnsurePipelineManager(targetAvatar));
-                    if (GUILayout.Button("Fix skinned mesh bounds")) WithUndo(() => VtoolAvatarFixes.FixMeshBounds(targetAvatar));
-                    if (GUILayout.Button("Fix audio (3D, volume, playOnAwake)")) WithUndo(() => { int p; VtoolAvatarFixes.FixAudioSources(targetAvatar, out p); });
-                    if (GUILayout.Button("Align view position (only if empty)")) WithUndo(() => VtoolAvatarFixes.AlignViewPosition(targetAvatar, onlyIfUnset: true));
-                    if (GUILayout.Button("Setup lip sync (only if empty)")) WithUndo(() => VtoolAvatarFixes.SetupLipSync(targetAvatar, onlyIfUnset: true));
+                    if (ActionButton("btn.add_pipeline", "tip.add_pipeline"))
+                        WithUndo(() => VtoolAvatarFixes.EnsurePipelineManager(targetAvatar));
+                    if (ActionButton("btn.fix_bounds", "tip.fix_bounds"))
+                        WithUndo(() => VtoolAvatarFixes.FixMeshBounds(targetAvatar));
+                    if (ActionButton("btn.fix_audio", "tip.fix_audio"))
+                        WithUndo(() => { int p; VtoolAvatarFixes.FixAudioSources(targetAvatar, out p); });
+                    if (ActionButton("btn.view_pos", "tip.view_pos"))
+                        WithUndo(() => VtoolAvatarFixes.AlignViewPosition(targetAvatar, onlyIfUnset: true));
+                    if (ActionButton("btn.lip_sync", "tip.lip_sync"))
+                        WithUndo(() => VtoolAvatarFixes.SetupLipSync(targetAvatar, onlyIfUnset: true));
 
                     EditorGUILayout.Space(4);
-                    EditorGUILayout.LabelField("Optional / changes more", EditorStyles.miniLabel);
+                    EditorGUILayout.LabelField(L.T("label.optional"), EditorStyles.miniLabel);
                     if (scan.PhysBoneCount > 256)
                     {
                         var prevPb = GUI.backgroundColor;
                         GUI.backgroundColor = new Color(0.85f, 0.35f, 0.3f);
-                        if (GUILayout.Button($"Reduce PhysBones to 256 ({scan.PhysBoneCount} → 256)"))
+                        if (GUILayout.Button(new GUIContent(L.TF("btn.reduce_pb_n", scan.PhysBoneCount), L.T("tip.reduce_pb"))))
                             RunReducePhysBones();
                         GUI.backgroundColor = prevPb;
                     }
-                    else if (GUILayout.Button("Reduce PhysBones to 256"))
+                    else if (GUILayout.Button(new GUIContent(L.T("btn.reduce_pb"), L.T("tip.reduce_pb"))))
                         RunReducePhysBones();
-                    if (GUILayout.Button("Remove missing script slots"))
+                    Caption("cap.reduce_pb");
+
+                    if (ActionButton("btn.remove_missing", "tip.remove_missing"))
                         RunRemoveMissingScripts();
-                    if (GUILayout.Button("Fix materials with placeholder (last resort)"))
+                    if (ActionButton("btn.placeholder_mats", "tip.placeholder_mats"))
                         RunPlaceholderMaterials();
-                    if (GUILayout.Button("Disable other avatars in scene"))
+                    if (ActionButton("btn.disable_others", "tip.disable_others"))
                         RunDisableOtherAvatars();
-                    if (GUILayout.Button("Clear blueprint ID (new upload)"))
+                    if (ActionButton("btn.clear_blueprint", "tip.clear_blueprint"))
                         RunClearBlueprintId();
                     EditorGUI.indentLevel--;
                 }
@@ -351,70 +392,78 @@ namespace XVR.Tools
 
         private void DrawTexturesTab(AvatarScanResult scan)
         {
-            DrawSection("Texture size", () =>
+            DrawSection(L.T("sec.tex_size"), () =>
             {
-                Stat("Textures", scan.TextureCount.ToString());
-                Stat("4K+", scan.Textures4K.ToString(), scan.Textures4K > 0 ? errStyle : okStyle);
-                Stat("Over 2K", scan.TexturesOver2K.ToString(), scan.TexturesOver2K > 0 ? warnStyle : okStyle);
-                Stat("Memory", $"~{scan.TextureMemoryMB:F0} MB", scan.TextureMemoryMB > 100 ? warnStyle : null);
+                Stat(L.T("stat.textures"), scan.TextureCount.ToString());
+                Stat(L.T("stat.4k"), scan.Textures4K.ToString(), scan.Textures4K > 0 ? errStyle : okStyle);
+                Stat(L.T("stat.over2k"), scan.TexturesOver2K.ToString(), scan.TexturesOver2K > 0 ? warnStyle : okStyle);
+                Stat(L.T("stat.mem_short"), $"~{scan.TextureMemoryMB:F0} MB", scan.TextureMemoryMB > 100 ? warnStyle : null);
 
                 GUILayout.Space(6);
-                textureCapSize = EditorGUILayout.IntPopup("Cap to", textureCapSize,
-                    new[] { "512", "1024", "2048 (VRChat max)" }, new[] { 512, 1024, 2048 });
+                textureCapSize = EditorGUILayout.IntPopup(L.T("field.cap_to"), textureCapSize,
+                    new[] { "512", "1024", L.T("cap.vrchat_max") }, new[] { 512, 1024, 2048 });
 
                 var prev = GUI.backgroundColor;
                 GUI.backgroundColor = Accent;
-                if (GUILayout.Button($"Reduce to {textureCapSize}px", GUILayout.Height(32)))
+                if (GUILayout.Button(new GUIContent(L.TF("btn.reduce_tex", textureCapSize), L.T("tip.reduce_tex")), GUILayout.Height(32)))
                 {
-                    if (EditorUtility.DisplayDialog("Reduce Textures", $"Cap avatar textures to {textureCapSize}px import size?", "Reduce", "Cancel"))
+                    if (EditorUtility.DisplayDialog(L.T("dlg.tex.reduce_title"),
+                        L.TF("dlg.tex.reduce_body", textureCapSize),
+                        L.T("dlg.reduce"), L.T("dlg.cancel")))
                     {
                         var textures = VtoolAvatarFixes.CollectTextures(targetAvatar);
                         VtoolAvatarRollback.EnsureCapture(targetAvatar);
                         VtoolAvatarRollback.RecordTextures(targetAvatar, textures);
                         int n = VtoolAvatarFixes.CapTextureSizes(targetAvatar, textureCapSize);
-                        EditorUtility.DisplayDialog("Done", $"Reduced {n} texture(s). Use Restore to undo.", "OK");
+                        EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.tex.reduce_done", n), L.T("dlg.ok"));
                         Repaint();
                     }
                 }
                 GUI.backgroundColor = prev;
+                Caption("cap.reduce_tex");
 
-                if (GUILayout.Button("Restore original sizes", GUILayout.Height(26)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.restore_tex"), L.T("tip.restore_tex")), GUILayout.Height(26)))
                 {
-                    if (EditorUtility.DisplayDialog("Restore", "Restore textures to source file resolution?", "Restore", "Cancel"))
+                    if (EditorUtility.DisplayDialog(L.T("dlg.tex.restore_title"),
+                        L.T("dlg.tex.restore_body"),
+                        L.T("dlg.restore"), L.T("dlg.cancel")))
                     {
                         var textures = VtoolAvatarFixes.CollectTextures(targetAvatar);
                         VtoolAvatarRollback.EnsureCapture(targetAvatar);
                         VtoolAvatarRollback.RecordTextures(targetAvatar, textures);
                         int n = VtoolAvatarFixes.RestoreTextureSizes(targetAvatar);
-                        EditorUtility.DisplayDialog("Done", $"Restored {n} texture(s).", "OK");
+                        EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.tex.restore_done", n), L.T("dlg.ok"));
                         Repaint();
                     }
                 }
 
-                if (GUILayout.Button("Enable mipmaps", GUILayout.Height(24)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.mipmaps"), L.T("tip.mipmaps")), GUILayout.Height(24)))
                 {
-                    if (EditorUtility.DisplayDialog("Enable Mipmaps", "Changes texture import settings for textures on this avatar. Continue?", "Enable", "Cancel"))
+                    if (EditorUtility.DisplayDialog(L.T("dlg.tex.mip_title"),
+                        L.T("dlg.tex.mip_body"),
+                        L.T("dlg.enable"), L.T("dlg.cancel")))
                         WithUndo(() => VtoolAvatarFixes.EnableTextureMipmaps(targetAvatar), trackTextures: true);
                 }
             });
 
-            DrawSection("Quest / Android", () =>
+            DrawSection(L.T("sec.quest"), () =>
             {
-                EditorGUILayout.LabelField(
-                    "Quest uploads need VRChat/Mobile shaders. Duplicate materials first to keep PC versions.",
-                    EditorStyles.wordWrappedMiniLabel);
-                Stat("Non-Quest materials", scan.QuestBadShaders.ToString(), scan.QuestBadShaders > 0 ? warnStyle : okStyle);
+                EditorGUILayout.LabelField(L.T("quest.intro"), EditorStyles.wordWrappedMiniLabel);
+                Stat(L.T("stat.non_quest"), scan.QuestBadShaders.ToString(), scan.QuestBadShaders > 0 ? warnStyle : okStyle);
 
-                if (GUILayout.Button("Convert to Quest shaders", GUILayout.Height(30)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.quest_convert"), L.T("tip.quest_convert")), GUILayout.Height(30)))
                 {
-                    if (EditorUtility.DisplayDialog("Quest Conversion", "Duplicate materials then convert to VRChat/Mobile/Toon Lit?", "Convert", "Cancel"))
+                    if (EditorUtility.DisplayDialog(L.T("dlg.quest.title"),
+                        L.T("dlg.quest.body"),
+                        L.T("dlg.convert"), L.T("dlg.cancel")))
                     {
                         VtoolAvatarRollback.EnsureCapture(targetAvatar);
                         int n = VtoolAvatarFixes.ConvertToQuestShaders(targetAvatar, true);
-                        EditorUtility.DisplayDialog("Done", $"Converted {n} material slot(s).", "OK");
+                        EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.quest.done", n), L.T("dlg.ok"));
                         Repaint();
                     }
                 }
+                Caption("cap.quest_convert");
             });
         }
 
@@ -424,24 +473,22 @@ namespace XVR.Tools
 
         private void RunFixAll()
         {
-            if (!EditorUtility.DisplayDialog("Fix All",
-                "Applies safe fixes only.\n\n" +
-                "A rollback copy is saved first so you can undo everything.\n\n" +
-                "Continue?", "Fix", "Cancel"))
+            if (!EditorUtility.DisplayDialog(L.T("dlg.fix_all.title"), L.T("dlg.fix_all.body"), L.T("dlg.fix"), L.T("dlg.cancel")))
                 return;
 
             VtoolAvatarRollback.Capture(targetAvatar);
             var s = VtoolAvatarFixes.ApplyAllSafeFixes(targetAvatar);
 
-            EditorUtility.DisplayDialog("Fix Complete",
-                $"Material slots fixed: {s.MaterialSlots}\n" +
-                $"PipelineManager added: {(s.PipelineManager ? "yes" : "no")}\n" +
-                $"Bounds fixed: {s.Bounds}\n" +
-                $"Audio fixed: {s.Audio} (playOnAwake: {s.AudioPlayOnAwake})\n" +
-                $"View position: {(s.ViewPosition ? "set" : "skipped")}\n" +
-                $"Lip sync: {(s.LipSync ? "set" : "skipped")}\n\n" +
-                "Re-check the Check tab. Fix pink/broken shaders manually.",
-                "OK");
+            EditorUtility.DisplayDialog(L.T("dlg.fix_complete"),
+                L.TF("dlg.fix_all.result",
+                    s.MaterialSlots,
+                    s.PipelineManager ? L.T("dlg.yes") : L.T("dlg.no"),
+                    s.Bounds,
+                    s.Audio,
+                    s.AudioPlayOnAwake,
+                    s.ViewPosition ? L.T("dlg.set") : L.T("dlg.skipped"),
+                    s.LipSync ? L.T("dlg.set") : L.T("dlg.skipped")),
+                L.T("dlg.ok"));
             Repaint();
         }
 
@@ -451,93 +498,69 @@ namespace XVR.Tools
             int excess = count - 256;
             if (excess <= 0)
             {
-                EditorUtility.DisplayDialog("PhysBones",
-                    $"This avatar has {count} PhysBone component(s), which is within the 256 limit.",
-                    "OK");
+                EditorUtility.DisplayDialog(L.T("dlg.pb.title"), L.TF("dlg.pb.ok_body", count), L.T("dlg.ok"));
                 return;
             }
 
-            if (!EditorUtility.DisplayDialog("Reduce PhysBones",
-                $"VRChat blocks upload above 256 PhysBone components.\n\n" +
-                $"Current: {count}\n" +
-                $"Will remove: {excess} PhysBone script(s)\n" +
-                $"Will keep: 256\n\n" +
-                "SAFETY:\n" +
-                "• Does NOT delete GameObjects, bones, meshes, or the face\n" +
-                "• Only removes excess VRCPhysBone components (scripts)\n" +
-                "• Prefers inactive / deeper accessory bones first\n" +
-                "• A rollback copy is saved first\n\nContinue?",
-                "Reduce", "Cancel"))
+            if (!EditorUtility.DisplayDialog(L.T("dlg.pb.reduce_title"),
+                L.TF("dlg.pb.reduce_body", count, excess),
+                L.T("dlg.reduce"), L.T("dlg.cancel")))
                 return;
 
             WithUndo(() =>
             {
                 int n = VtoolAvatarFixes.ReducePhysBoneComponents(targetAvatar, 256);
-                EditorUtility.DisplayDialog("Done",
-                    $"Removed {n} PhysBone component(s).\n" +
-                    "Bones and meshes are unchanged.\n" +
-                    "Use Rollback Avatar if you need to undo.",
-                    "OK");
+                EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.pb.done", n), L.T("dlg.ok"));
             });
         }
 
         private void RunRemoveMissingScripts()
         {
-            if (!EditorUtility.DisplayDialog("Remove Missing Scripts",
-                "This removes broken empty script slots from GameObjects.\n\n" +
-                "It does NOT delete meshes or child objects.\n" +
-                "Only use if you know those scripts are gone for good.\n\nContinue?",
-                "Remove", "Cancel"))
+            if (!EditorUtility.DisplayDialog(L.T("dlg.missing.title"), L.T("dlg.missing.body"), L.T("dlg.remove"), L.T("dlg.cancel")))
                 return;
 
             WithUndo(() =>
             {
                 int n = VtoolAvatarFixes.RemoveMissingScripts(targetAvatar);
-                EditorUtility.DisplayDialog("Done", $"Removed {n} missing script slot(s).", "OK");
+                EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.missing.done", n), L.T("dlg.ok"));
             });
         }
 
         private void RunPlaceholderMaterials()
         {
-            if (!EditorUtility.DisplayDialog("Placeholder Materials",
-                "Fills empty material slots with a gray placeholder.\n\n" +
-                "This can change how parts look. Prefer fixing materials manually.\n\nContinue?",
-                "Continue", "Cancel"))
+            if (!EditorUtility.DisplayDialog(L.T("dlg.placeholder.title"), L.T("dlg.placeholder.body"), L.T("dlg.continue"), L.T("dlg.cancel")))
                 return;
 
             WithUndo(() =>
             {
                 int n = VtoolAvatarFixes.FixMissingMaterials(targetAvatar, allowPlaceholder: true);
-                EditorUtility.DisplayDialog("Done", $"Filled {n} slot(s).", "OK");
+                EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.placeholder.done", n), L.T("dlg.ok"));
             });
         }
 
         private void RunDisableOtherAvatars()
         {
-            if (!EditorUtility.DisplayDialog("Disable Other Avatars",
-                "Hides other avatar roots in this scene.\n\n" +
-                "Your selected avatar is not changed.\n\nContinue?",
-                "Disable", "Cancel"))
+            if (!EditorUtility.DisplayDialog(L.T("dlg.disable.title"), L.T("dlg.disable.body"), L.T("dlg.disable"), L.T("dlg.cancel")))
                 return;
 
             WithUndo(() =>
             {
                 int n = VtoolAvatarFixes.DisableOtherAvatars(targetAvatar);
-                EditorUtility.DisplayDialog("Done", $"Disabled {n} other avatar(s).", "OK");
+                EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.disable.done", n), L.T("dlg.ok"));
             });
         }
 
         private void RunClearBlueprintId()
         {
-            if (!EditorUtility.DisplayDialog("Clear Blueprint ID",
-                "Clears the PipelineManager blueprint ID for a fresh upload.\n\nContinue?",
-                "Clear", "Cancel"))
+            if (!EditorUtility.DisplayDialog(L.T("dlg.blueprint.title"), L.T("dlg.blueprint.body"), L.T("dlg.clear"), L.T("dlg.cancel")))
                 return;
 
             WithUndo(() =>
             {
                 bool ok = VtoolAvatarFixes.ClearBlueprintId(targetAvatar);
-                EditorUtility.DisplayDialog("Done", ok ? "Blueprint ID cleared." : "Nothing to clear.", "OK");
+                EditorUtility.DisplayDialog(L.T("dlg.done"),
+                    ok ? L.T("dlg.blueprint.cleared") : L.T("dlg.blueprint.nothing"),
+                    L.T("dlg.ok"));
             });
         }
 
@@ -545,14 +568,11 @@ namespace XVR.Tools
         {
             if (targetAvatar == null || !VtoolAvatarRollback.HasRollback(targetAvatar)) return;
 
-            if (!EditorUtility.DisplayDialog("Rollback Avatar",
-                "This replaces your avatar with the copy saved before Vtool changes.\n\n" +
-                "Texture import settings are restored too if they were changed.\n\nContinue?",
-                "Rollback", "Cancel"))
+            if (!EditorUtility.DisplayDialog(L.T("dlg.rollback.title"), L.T("dlg.rollback.body"), L.T("dlg.rollback"), L.T("dlg.cancel")))
                 return;
 
             targetAvatar = VtoolAvatarRollback.Restore(targetAvatar);
-            EditorUtility.DisplayDialog("Rollback Complete", "Avatar restored.", "OK");
+            EditorUtility.DisplayDialog(L.T("dlg.rollback.done_title"), L.T("dlg.rollback.done"), L.T("dlg.ok"));
             Repaint();
         }
 
@@ -576,7 +596,7 @@ namespace XVR.Tools
             backup.SetActive(false);
             Undo.RegisterCreatedObjectUndo(backup, "Backup");
             VtoolAvatarFixes.MarkDirty();
-            EditorUtility.DisplayDialog("Backup", $"Created:\n{backup.name}", "OK");
+            EditorUtility.DisplayDialog(L.T("dlg.backup.title"), L.TF("dlg.backup.done", backup.name), L.T("dlg.ok"));
         }
 
         private void AutoDetectAvatar()
@@ -595,5 +615,19 @@ namespace XVR.Tools
         }
 
         #endregion
+
+        // Short alias for localization calls in this window
+        private static class L
+        {
+            public static VtoolLanguage Language
+            {
+                get => VtoolLocalization.Language;
+                set => VtoolLocalization.Language = value;
+            }
+
+            public static string[] LanguageDisplayNames => VtoolLocalization.LanguageDisplayNames;
+            public static string T(string key) => VtoolLocalization.T(key);
+            public static string TF(string key, params object[] args) => VtoolLocalization.TF(key, args);
+        }
     }
 }

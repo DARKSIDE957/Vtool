@@ -64,10 +64,10 @@ namespace XVR.Tools
             get
             {
                 if (BlockerCount > 0)
-                    return $"{BlockerCount} upload blocker(s) and {WarningCount} warning(s) — fix before uploading.";
+                    return VtoolLocalization.TF("summary.blockers", BlockerCount, WarningCount);
                 if (WarningCount > 0)
-                    return $"No blockers, but {WarningCount} warning(s) to review.";
-                return "All common checks passed. Run VRChat SDK Build & Test before uploading.";
+                    return VtoolLocalization.TF("summary.warnings", WarningCount);
+                return VtoolLocalization.T("summary.ok");
             }
         }
     }
@@ -181,77 +181,78 @@ namespace XVR.Tools
         private static void AddBlockers(ref AvatarScanResult r)
         {
             if (!r.HasDescriptor)
-                r.Issues.Add(Issue(IssueSeverity.Blocker, "Missing VRCAvatarDescriptor on avatar root", "Add from VRChat SDK menu"));
+                r.Issues.Add(Issue(IssueSeverity.Blocker, "issue.no_descriptor", "hint.no_descriptor"));
             if (!r.HasPipelineManager)
-                r.Issues.Add(Issue(IssueSeverity.Blocker, "Missing PipelineManager on avatar root", "Use Fix All or add via SDK"));
+                r.Issues.Add(Issue(IssueSeverity.Blocker, "issue.no_pipeline", "hint.no_pipeline"));
             if (!r.HasHumanoidAnimator)
-                r.Issues.Add(Issue(IssueSeverity.Blocker, "Missing humanoid Animator on avatar root", "Set rig to Humanoid in Import settings"));
+                r.Issues.Add(Issue(IssueSeverity.Blocker, "issue.no_humanoid", "hint.no_humanoid"));
             if (r.MissingScripts > 0)
-                r.Issues.Add(Issue(IssueSeverity.Blocker, $"{r.MissingScripts} missing script reference(s)", "Use Individual fixes (removes broken slots only)"));
+                r.Issues.Add(IssueF(IssueSeverity.Blocker, "issue.missing_scripts", "hint.missing_scripts", r.MissingScripts));
             if (r.NullMaterialSlots > 0)
-                r.Issues.Add(Issue(IssueSeverity.Blocker, $"{r.NullMaterialSlots} null material slot(s)", "Fix All copies a nearby material on the same renderer"));
+                r.Issues.Add(IssueF(IssueSeverity.Blocker, "issue.null_mats", "hint.null_mats", r.NullMaterialSlots));
             if (r.BrokenShaders > 0)
-                r.Issues.Add(Issue(IssueSeverity.Blocker, $"{r.BrokenShaders} broken shader(s) (pink materials)", "Reassign shaders manually"));
+                r.Issues.Add(IssueF(IssueSeverity.Blocker, "issue.broken_shaders", "hint.broken_shaders", r.BrokenShaders));
             if (r.MissingMeshes > 0)
-                r.Issues.Add(Issue(IssueSeverity.Blocker, $"{r.MissingMeshes} renderer(s) with missing mesh", "Reassign or remove broken renderers"));
+                r.Issues.Add(IssueF(IssueSeverity.Blocker, "issue.missing_meshes", "hint.missing_meshes", r.MissingMeshes));
             if (r.PolyCount > 200000)
-                r.Issues.Add(Issue(IssueSeverity.Blocker, $"Extreme polygon count ({r.PolyCount:N0})", "Reduce in Blender or decimate"));
+                r.Issues.Add(IssueF(IssueSeverity.Blocker, "issue.extreme_poly", "hint.extreme_poly", r.PolyCount.ToString("N0")));
             if (r.PhysBoneCount > 256)
-                r.Issues.Add(Issue(IssueSeverity.Blocker,
-                    $"Phys Bone Components: {r.PhysBoneCount} — exceeds VRChat limit (256)",
-                    "Use Individual fixes → Reduce PhysBones to 256 (removes PhysBone scripts only, never GameObjects/meshes)"));
+                r.Issues.Add(IssueF(IssueSeverity.Blocker, "issue.physbone_limit", "hint.physbone_limit", r.PhysBoneCount));
         }
 
         private static void AddWarnings(ref AvatarScanResult r)
         {
             if (!r.HasChestBone && r.HasHumanoidAnimator)
-                r.Issues.Add(Issue(IssueSeverity.Warning, "Humanoid rig missing Chest bone mapping", "Map Chest in Rig configuration"));
+                r.Issues.Add(Issue(IssueSeverity.Warning, "issue.no_chest", "hint.no_chest"));
             if (!r.HasViewPosition)
-                r.Issues.Add(Issue(IssueSeverity.Warning, "View position not set on descriptor", "Fix All sets it only when empty"));
+                r.Issues.Add(Issue(IssueSeverity.Warning, "issue.no_view", "hint.fix_if_empty"));
             if (!r.HasLipSync)
-                r.Issues.Add(Issue(IssueSeverity.Warning, "Lip sync / visemes not configured", "Fix All sets it only when empty"));
+                r.Issues.Add(Issue(IssueSeverity.Warning, "issue.no_lipsync", "hint.fix_if_empty"));
             if (!r.RootScaleIsOne)
-                r.Issues.Add(Issue(IssueSeverity.Warning, "Avatar root scale is not (1,1,1)", "Can cause IK issues — normalize if needed"));
+                r.Issues.Add(Issue(IssueSeverity.Warning, "issue.root_scale", "hint.root_scale"));
             if (r.NegativeScales > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.NegativeScales} transform(s) with negative scale", "Can invert normals and break uploads"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.neg_scale", "hint.neg_scale", r.NegativeScales));
             if (r.NonUnitScales > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.NonUnitScales} transform(s) with non-unit scale", "May cause animation/IK issues"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.nonunit_scale", "hint.nonunit_scale", r.NonUnitScales));
             if (r.PolyCount > 70000)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"High polygon count ({r.PolyCount:N0}) — Poor rank on PC", "Decimate or optimize mesh"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.high_poly", "hint.high_poly", r.PolyCount.ToString("N0")));
             else if (r.PolyCount > QuestPolyLimit)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"Over Quest limit ({QuestPolyLimit:N0} tris)", "Required for Android/Quest uploads"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.quest_poly", "hint.quest_poly", QuestPolyLimit.ToString("N0")));
             if (r.SkinnedMeshCount > 8)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.SkinnedMeshCount} skinned meshes (8+ hurts performance)", "Merge meshes if possible"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.skinned_many", "hint.skinned_many", r.SkinnedMeshCount));
             if (r.MaterialSlots > 16)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.MaterialSlots} material slots (16+ hurts performance)", "Atlas textures / merge materials"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.mats_many", "hint.mats_many", r.MaterialSlots));
             if (r.Textures4K > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.Textures4K} texture(s) at 4K+", "Reduce to 2K in Textures tab"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.tex_4k", "hint.tex_4k", r.Textures4K));
             if (r.TexturesOver2K > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.TexturesOver2K} texture(s) over 2K", "VRChat recommends 2K max"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.tex_2k", "hint.tex_2k", r.TexturesOver2K));
             if (r.TextureMemoryMB > 150)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"High texture memory (~{r.TextureMemoryMB:F0} MB)", "Can fail security checks"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.tex_mem", "hint.tex_mem", r.TextureMemoryMB.ToString("F0")));
             if (r.TexturesNoMipmaps > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.TexturesNoMipmaps} texture(s) missing mipmaps", "Use Textures tab"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.no_mip", "hint.use_tex_tab", r.TexturesNoMipmaps));
             if (r.LegacyDynamicBones > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.LegacyDynamicBones} legacy Dynamic Bone(s)", "Migrate to PhysBones"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.dynbone", "hint.dynbone", r.LegacyDynamicBones));
             if (r.PhysBoneCount > 32 && r.PhysBoneCount <= 256)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.PhysBoneCount} PhysBones (32+ is Very Poor on PC)", "Consider combining or reducing PhysBones"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.pb_poor", "hint.pb_poor", r.PhysBoneCount));
             if (r.BadAudioCount > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.BadAudioCount} audio source(s) need 3D spatialization", "Fix All corrects audio"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.bad_audio", "hint.fix_all_audio", r.BadAudioCount));
             if (r.AudioPlayOnAwake > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.AudioPlayOnAwake} audio plays on awake", "Fix All disables playOnAwake"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.play_awake", "hint.play_awake", r.AudioPlayOnAwake));
             if (r.ParticleCount > 16)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.ParticleCount} particle systems (16+ hurts performance)", "Reduce particle count"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.particles", "hint.particles", r.ParticleCount));
             if (r.OtherAvatarsInScene > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.OtherAvatarsInScene} other avatar(s) active in scene", "Use Individual fixes to hide them"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.other_avatars", "hint.other_avatars", r.OtherAvatarsInScene));
             if (r.QuestBadShaders > 0)
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"{r.QuestBadShaders} material(s) not Quest-compatible", "Use Quest conversion in Textures tab"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.quest_mats", "hint.quest_mats", r.QuestBadShaders));
             if (r.AvatarHeightMeters > MaxHeight || (r.AvatarHeightMeters > 0 && r.AvatarHeightMeters < MinHeight))
-                r.Issues.Add(Issue(IssueSeverity.Warning, $"Unusual avatar height ({r.AvatarHeightMeters:F2}m)", "Check view position and scale"));
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "issue.height", "hint.height", r.AvatarHeightMeters.ToString("F2")));
         }
 
-        private static AvatarIssue Issue(IssueSeverity s, string msg, string hint) =>
-            new AvatarIssue { Severity = s, Message = msg, FixHint = hint };
+        private static AvatarIssue Issue(IssueSeverity s, string msgKey, string hintKey) =>
+            new AvatarIssue { Severity = s, Message = VtoolLocalization.T(msgKey), FixHint = VtoolLocalization.T(hintKey) };
+
+        private static AvatarIssue IssueF(IssueSeverity s, string msgKey, string hintKey, params object[] args) =>
+            new AvatarIssue { Severity = s, Message = VtoolLocalization.TF(msgKey, args), FixHint = VtoolLocalization.T(hintKey) };
 
         private static void AnalyzeTextures(HashSet<Texture> textures, ref AvatarScanResult r)
         {
