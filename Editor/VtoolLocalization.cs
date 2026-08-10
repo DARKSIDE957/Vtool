@@ -198,6 +198,17 @@ namespace XVR.Tools
 
             // Check tab
             Add("sec.status", "Status", "الحالة", "Estado");
+            Add("btn.copy_errors", "Copy Error Codes", "نسخ أكواد الأخطاء", "Copiar códigos de error");
+            Add("tip.copy_errors", "Copies blocker/warning codes plus scan stats to the clipboard so you can paste them when asking for help.",
+                "ينسخ أكواد الموانع والتحذيرات مع إحصائيات الفحص إلى الحافظة للصقها عند طلب المساعدة.",
+                "Copia códigos de bloqueo/aviso y estadísticas al portapapeles para pegarlos al pedir ayuda.");
+            Add("cap.copy_errors", "Paste this report when asking what is wrong with the avatar or Vtool.",
+                "الصق هذا التقرير عند السؤال عما خطأ في الأفاتار أو Vtool.",
+                "Pega este informe al preguntar qué falla en el avatar o en Vtool.");
+            Add("dlg.copy_errors.title", "Copied", "تم النسخ", "Copiado");
+            Add("dlg.copy_errors.body", "Error codes and scan details were copied to the clipboard. Paste them when reporting a problem.",
+                "تم نسخ أكواد الأخطاء وتفاصيل الفحص إلى الحافظة. الصقها عند الإبلاغ عن مشكلة.",
+                "Los códigos de error y el escaneo se copiaron al portapapeles. Pégalos al reportar un problema.");
             Add("sec.blockers", "Blockers ({0})", "موانع الرفع ({0})", "Bloqueos ({0})");
             Add("sec.warnings", "Warnings ({0})", "تحذيرات ({0})", "Advertencias ({0})");
             Add("sec.result", "Result", "النتيجة", "Resultado");

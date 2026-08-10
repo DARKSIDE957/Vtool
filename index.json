@@ -6,6 +6,21 @@
   "packages": {
     "com.vtool.autofixer": {
       "versions": {
+        "2.2.5": {
+          "name": "com.vtool.autofixer",
+          "displayName": "Vtool Avatar Auto-Fixer Pro",
+          "version": "2.2.5",
+          "description": "Pre-upload VRChat avatar fixer — diagnoses and fixes common upload errors, textures, bilingual UI; never removes head/face/hair content.",
+          "unity": "2022.3",
+          "author": {
+            "name": "DARKSIDE957",
+            "email": "contact@vtool.local"
+          },
+          "url": "https://github.com/DARKSIDE957/Vtool/releases/download/v2.2.5/com.vtool.autofixer-2.2.5.zip",
+          "vpmDependencies": {
+            "com.vrchat.avatars": "^3.0.0"
+          }
+        },
         "2.2.4": {
           "name": "com.vtool.autofixer",
           "displayName": "Vtool Avatar Auto-Fixer Pro",
@@ -32,21 +47,6 @@
             "email": "contact@vtool.local"
           },
           "url": "https://github.com/DARKSIDE957/Vtool/releases/download/v2.2.3/com.vtool.autofixer-2.2.3.zip",
-          "vpmDependencies": {
-            "com.vrchat.avatars": "^3.0.0"
-          }
-        },
-        "2.2.2": {
-          "name": "com.vtool.autofixer",
-          "displayName": "Vtool Avatar Auto-Fixer Pro",
-          "version": "2.2.2",
-          "description": "Pre-upload VRChat avatar fixer — diagnoses and fixes common upload errors, textures, bilingual UI; never removes head/face/hair content.",
-          "unity": "2022.3",
-          "author": {
-            "name": "DARKSIDE957",
-            "email": "contact@vtool.local"
-          },
-          "url": "https://github.com/DARKSIDE957/Vtool/releases/download/v2.2.2/com.vtool.autofixer-2.2.2.zip",
           "vpmDependencies": {
             "com.vrchat.avatars": "^3.0.0"
           }

@@ -389,6 +389,10 @@ namespace XVR.Tools
                 try
                 {
                     GUILayout.Label(mark, icon, GUILayout.Width(14));
+                    if (!string.IsNullOrEmpty(issue.Code))
+                        GUILayout.Label(issue.Code, errStyle ?? CaptionStyle(), GUILayout.Width(140));
+                    else
+                        GUILayout.Label(string.Empty, CaptionStyle(), GUILayout.Width(140));
                     GUILayout.Label(issue.Message ?? string.Empty, EditorStyles.wordWrappedLabel ?? CaptionStyle());
                 }
                 finally
@@ -418,6 +422,10 @@ namespace XVR.Tools
             {
                 EditorGUILayout.HelpBox(scan.Summary ?? string.Empty,
                     scan.BlockerCount > 0 ? MessageType.Error : scan.WarningCount > 0 ? MessageType.Warning : MessageType.Info);
+
+                if (GUILayout.Button(new GUIContent(L.T("btn.copy_errors") ?? "Copy Error Codes", L.T("tip.copy_errors") ?? string.Empty), GUILayout.Height(28)))
+                    Defer(() => CopyErrorCodes(scan));
+                Caption("cap.copy_errors");
             });
 
             // Always draw the three outcome sections so Layout/Repaint stay matched.
@@ -663,6 +671,36 @@ namespace XVR.Tools
         #endregion
 
         #region Actions
+
+        private static string ReadPackageVersion()
+        {
+            try
+            {
+                const string path = "Packages/com.vtool.autofixer/package.json";
+                if (System.IO.File.Exists(path))
+                {
+                    var m = System.Text.RegularExpressions.Regex.Match(
+                        System.IO.File.ReadAllText(path), "\"version\"\\s*:\\s*\"([^\"]+)\"");
+                    if (m.Success) return m.Groups[1].Value;
+                }
+            }
+            catch { /* ignore */ }
+            return "2.2.5";
+        }
+
+        private void CopyErrorCodes(AvatarScanResult scan)
+        {
+            if (scan.Issues == null)
+                scan = VtoolAvatarScan.Scan(targetAvatar);
+
+            string report = VtoolAvatarScan.BuildDiagnosticReport(targetAvatar, scan, ReadPackageVersion());
+            EditorGUIUtility.systemCopyBuffer = report;
+            Debug.Log("[Vtool] Diagnostic report copied to clipboard.\n" + report);
+            EditorUtility.DisplayDialog(
+                L.T("dlg.copy_errors.title") ?? "Copied",
+                L.T("dlg.copy_errors.body") ?? "Error codes and scan details were copied to the clipboard. Paste them when reporting a problem.",
+                L.T("dlg.ok") ?? "OK");
+        }
 
         private void RunFixAll()
         {
