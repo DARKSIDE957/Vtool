@@ -90,11 +90,16 @@ namespace XVR.Tools
         {
             int fixedSlots = 0;
             var renderers = avatar.GetComponentsInChildren<Renderer>(true);
+            var headRoots = CollectHeadProtectionRoots(avatar);
             Undo.RecordObjects(renderers, "Fix Materials");
 
             foreach (var r in renderers)
             {
                 if (r == null) continue;
+                bool headProtected = IsUnderHeadProtection(r.transform, avatar, headRoots);
+                // Never invent placeholder mats on head/face/hair — that can blank the face.
+                bool canPlaceholder = allowPlaceholder && !headProtected;
+
                 var mats = r.sharedMaterials;
                 if (mats.Length == 0) continue;
 
@@ -108,7 +113,7 @@ namespace XVR.Tools
                     var fb = FindFallbackMaterial(newMats, i);
                     if (fb == null)
                     {
-                        if (!allowPlaceholder) continue;
+                        if (!canPlaceholder) continue;
                         fb = GetPlaceholderMaterial();
                         if (fb == null) continue;
                     }
@@ -130,9 +135,15 @@ namespace XVR.Tools
                         }
 
                         var fb = FindFallbackMaterial(newMats, i);
-                        if (fb == null && allowPlaceholder)
+                        if (fb == null && canPlaceholder)
                             fb = GetPlaceholderMaterial();
-                        if (fb == null) continue;
+                        if (fb == null)
+                        {
+                            // Keep prior slot if any — never write a shorter/null head materials array.
+                            if (i < newMats.Length)
+                                expanded[i] = newMats[i];
+                            continue;
+                        }
 
                         expanded[i] = fb;
                         fixedSlots++;
@@ -291,7 +302,7 @@ namespace XVR.Tools
             return true;
         }
 
-        // Removes excess VRCPhysBone scripts only — never GameObjects, meshes, bones, or anything under the head.
+        // Removes excess VRCPhysBone scripts only — never GameObjects, meshes, bones, or head/face/hair.
         public static int ReducePhysBoneComponents(GameObject avatar, int limit = 256)
         {
             if (avatar == null || limit < 0) return 0;
@@ -308,9 +319,9 @@ namespace XVR.Tools
             int excess = components.Count - limit;
             if (excess <= 0) return 0;
 
-            // Never remove PhysBones on/under the head. Prefer inactive / deep accessory bones elsewhere.
+            // Never remove PhysBones on/under the head, or whose root targets the head/face/hair.
             var removable = components
-                .Where(c => !IsUnderHeadProtection(c.transform, avatar, headRoots))
+                .Where(c => !IsPhysBoneHeadProtected(c, avatar, headRoots))
                 .OrderByDescending(c => PhysBoneRemovalPriority(c))
                 .ThenBy(c => HierarchyPath(c.transform), System.StringComparer.Ordinal)
                 .ToList();
@@ -320,7 +331,7 @@ namespace XVR.Tools
             {
                 var c = removable[i];
                 if (c == null) continue;
-                if (!TryDestroyComponent(c, avatar, headRoots)) continue;
+                if (!TryDestroyPhysBoneOnly(c, avatar, headRoots)) continue;
                 removed++;
             }
 
@@ -336,6 +347,8 @@ namespace XVR.Tools
             {
                 if (go == null) continue;
                 if (IsUnderHeadProtection(go.transform, avatar, headRoots)) continue;
+                // Never strip scripts from objects that also hold a mesh renderer (face/body geo).
+                if (go.GetComponent<Renderer>() != null) continue;
                 n += GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
             }
             return n;
@@ -349,7 +362,7 @@ namespace XVR.Tools
 
         private static bool IsUnderHeadProtection(Transform t, GameObject avatar, HashSet<Transform> headRoots)
         {
-            if (t == null || avatar == null) return false;
+            if (t == null || avatar == null) return true; // fail-safe: protect unknowns
 
             if (headRoots != null)
             {
@@ -360,7 +373,6 @@ namespace XVR.Tools
                 }
             }
 
-            // Name fallback along the path to the avatar root
             for (var cur = t; cur != null; cur = cur.parent)
             {
                 if (IsHeadRelatedName(cur.name)) return true;
@@ -369,22 +381,37 @@ namespace XVR.Tools
             return false;
         }
 
+        private static bool IsPhysBoneHeadProtected(Component physBone, GameObject avatar, HashSet<Transform> headRoots)
+        {
+            if (physBone == null) return true;
+            if (IsUnderHeadProtection(physBone.transform, avatar, headRoots)) return true;
+
+            // VRCPhysBone.rootTransform often points at hair/head while the script sits on Chest/Hips.
+            if (TryGetMember(physBone, physBone.GetType(), "rootTransform", out var rootObj) && rootObj is Transform root)
+            {
+                if (IsUnderHeadProtection(root, avatar, headRoots)) return true;
+            }
+
+            return false;
+        }
+
         private static HashSet<Transform> CollectHeadProtectionRoots(GameObject avatar)
         {
             var roots = new HashSet<Transform>();
             if (avatar == null) return roots;
 
-            var anim = avatar.GetComponent<Animator>();
+            var anim = avatar.GetComponentInChildren<Animator>(true);
             if (anim != null && anim.isHuman)
             {
                 AddBone(roots, anim, HumanBodyBones.Head);
                 AddBone(roots, anim, HumanBodyBones.Neck);
+                AddBone(roots, anim, HumanBodyBones.UpperChest);
                 AddBone(roots, anim, HumanBodyBones.Jaw);
                 AddBone(roots, anim, HumanBodyBones.LeftEye);
                 AddBone(roots, anim, HumanBodyBones.RightEye);
             }
 
-            // Named head/face/hair objects anywhere under the avatar (common on non-perfect humanoid setups)
+            // Named head/face/hair objects anywhere under the avatar
             foreach (var tr in avatar.GetComponentsInChildren<Transform>(true))
             {
                 if (tr == null) continue;
@@ -392,7 +419,42 @@ namespace XVR.Tools
                     roots.Add(tr);
             }
 
+            // Face/head skinned meshes — protect the mesh object + its rootBone only
+            // (do not add every skin bone; that would lock the whole body armature).
+            foreach (var smr in avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                if (smr == null) continue;
+                bool nameHit = IsHeadRelatedName(smr.name) || IsHeadRelatedName(smr.gameObject.name) ||
+                               (smr.sharedMesh != null && IsHeadRelatedName(smr.sharedMesh.name));
+                bool faceBlend = LooksLikeFaceMesh(smr);
+                if (!nameHit && !faceBlend) continue;
+
+                roots.Add(smr.transform);
+                if (smr.rootBone != null)
+                    roots.Add(smr.rootBone);
+            }
+
             return roots;
+        }
+
+        private static bool LooksLikeFaceMesh(SkinnedMeshRenderer smr)
+        {
+            if (smr == null || smr.sharedMesh == null) return false;
+            var mesh = smr.sharedMesh;
+            if (mesh.blendShapeCount < 8) return false;
+
+            int hits = 0;
+            for (int i = 0; i < mesh.blendShapeCount; i++)
+            {
+                string n = mesh.GetBlendShapeName(i).ToLowerInvariant();
+                if (n.Contains("v_") || n.Contains("viseme") || n.Contains("sil") ||
+                    n.Contains("aa") || n.Contains("oh") || n.Contains("ch") ||
+                    n.Contains("blink") || n.Contains("jaw") || n.Contains("mouth") ||
+                    n.Contains("smile") || n.Contains("frown") || n.Contains("eye"))
+                    hits++;
+                if (hits >= 3) return true;
+            }
+            return mesh.blendShapeCount >= 20;
         }
 
         private static void AddBone(HashSet<Transform> set, Animator anim, HumanBodyBones bone)
@@ -405,35 +467,44 @@ namespace XVR.Tools
         {
             if (string.IsNullOrEmpty(name)) return false;
             string n = name.ToLowerInvariant();
-            // Match common avatar head/face/hair naming; avoid broad words like "body".
             return ContainsToken(n, "head") || ContainsToken(n, "face") || ContainsToken(n, "hair") ||
                    ContainsToken(n, "scalp") || ContainsToken(n, "skull") || ContainsToken(n, "neck") ||
                    ContainsToken(n, "jaw") || ContainsToken(n, "eye") || ContainsToken(n, "lash") ||
                    ContainsToken(n, "brow") || ContainsToken(n, "mouth") || ContainsToken(n, "teeth") ||
                    ContainsToken(n, "tooth") || ContainsToken(n, "tongue") || ContainsToken(n, "ear") ||
-                   ContainsToken(n, "viseme");
+                   ContainsToken(n, "viseme") || ContainsToken(n, "ponytail") || ContainsToken(n, "braid") ||
+                   ContainsToken(n, "bang") || ContainsToken(n, "fringe") || ContainsToken(n, "wig") ||
+                   ContainsToken(n, "lipstick") || ContainsToken(n, "nose") || ContainsToken(n, "cheek") ||
+                   ContainsToken(n, "chin") || ContainsToken(n, "forehead") || ContainsToken(n, "cranium") ||
+                   ContainsToken(n, "horn") || ContainsToken(n, "antler") || ContainsToken(n, "pupil") ||
+                   ContainsToken(n, "iris") || ContainsToken(n, "sclera");
         }
 
         private static bool ContainsToken(string name, string token)
         {
             int i = name.IndexOf(token, System.StringComparison.Ordinal);
             if (i < 0) return false;
-            // Avoid matching unrelated words when possible (e.g. "hearing") — still allow Head_001, Hair.002
             bool startOk = i == 0 || !char.IsLetterOrDigit(name[i - 1]);
             int end = i + token.Length;
             bool endOk = end >= name.Length || !char.IsLetterOrDigit(name[end]);
-            // Avatars often use Head_Geo / HairBand without separators — also allow substring for key tokens
-            if (token == "head" || token == "hair" || token == "face" || token == "eye")
+            if (token == "head" || token == "hair" || token == "face" || token == "eye" ||
+                token == "wig" || token == "bang" || token == "braid" || token == "ponytail")
                 return true;
             return startOk && endOk;
         }
 
-        // Never destroys GameObjects — only components, and never under the head.
-        private static bool TryDestroyComponent(Component c, GameObject avatar, HashSet<Transform> headRoots)
+        // Only VRCPhysBone scripts — never GameObjects, Transform, Renderer, MeshFilter, Animator, Descriptor.
+        private static bool TryDestroyPhysBoneOnly(Component c, GameObject avatar, HashSet<Transform> headRoots)
         {
             if (c == null) return false;
             if (c is Transform) return false;
-            if (IsUnderHeadProtection(c.transform, avatar, headRoots)) return false;
+            if (c is Renderer) return false;
+            if (c is MeshFilter) return false;
+            if (c is Animator) return false;
+            if (c.GetType().Name.IndexOf("PhysBone", System.StringComparison.OrdinalIgnoreCase) < 0)
+                return false;
+            if (IsPhysBoneHeadProtected(c, avatar, headRoots)) return false;
+
             Undo.DestroyObjectImmediate(c);
             return true;
         }

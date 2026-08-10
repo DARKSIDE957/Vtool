@@ -419,6 +419,9 @@ namespace XVR.Tools
             Add("dlg.pb.head_kept", "Still {0} PhysBones because head/face/hair PhysBones are protected and were not removed. Reduce body/clothing PhysBones manually if needed.",
                 "ما زال هناك {0} PhysBones لأن PhysBones الرأس/الوجه/الشعر محمية ولم تُزل. قلّل PhysBones الجسم/الملابس يدوياً إن لزم.",
                 "Quedan {0} PhysBones porque los de cabeza/cara/pelo están protegidos y no se quitaron. Reduce PhysBones del cuerpo/ropa a mano si hace falta.");
+            Add("dlg.pb.none_safe", "No safe PhysBones could be removed without touching head/face/hair. Nothing was deleted.",
+                "لا يمكن إزالة PhysBones بأمان دون لمس الرأس/الوجه/الشعر. لم يُحذف شيء.",
+                "No se pudieron quitar PhysBones sin tocar cabeza/cara/pelo. No se borró nada.");
 
             Add("dlg.missing.title", "Remove Missing Scripts", "إزالة السكربتات المفقودة", "Quitar scripts faltantes");
             Add("dlg.missing.body", "This removes broken empty script slots from GameObjects.\n\nIt does NOT delete meshes or child objects.\nIt never touches the head, face, or hair.\nOnly use if you know those scripts are gone for good.\n\nContinue?",

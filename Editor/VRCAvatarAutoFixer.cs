@@ -686,7 +686,7 @@ namespace XVR.Tools
                 }
             }
             catch { /* ignore */ }
-            return "2.2.7";
+            return "2.2.8";
         }
 
         private void CopyErrorCodes(AvatarScanResult scan)
@@ -743,9 +743,15 @@ namespace XVR.Tools
             {
                 int n = VtoolAvatarFixes.ReducePhysBoneComponents(targetAvatar, 256);
                 int after = VtoolAvatarScan.Scan(targetAvatar).PhysBoneCount;
-                string msg = L.TF("dlg.pb.done", n);
-                if (after > 256)
-                    msg += "\n\n" + L.TF("dlg.pb.head_kept", after);
+                string msg;
+                if (n <= 0)
+                    msg = L.T("dlg.pb.none_safe") ?? "Nothing removed — head/face/hair protected.";
+                else
+                {
+                    msg = L.TF("dlg.pb.done", n);
+                    if (after > 256)
+                        msg += "\n\n" + L.TF("dlg.pb.head_kept", after);
+                }
                 EditorUtility.DisplayDialog(L.T("dlg.done"), msg, L.T("dlg.ok"));
             });
         }
