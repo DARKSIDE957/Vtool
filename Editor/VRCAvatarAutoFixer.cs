@@ -21,6 +21,15 @@ namespace XVR.Tools
         private GUIStyle okStyle, warnStyle, errStyle, linkStyle;
         private bool stylesReady;
 
+        // Snapshot on EventType.Layout so Layout/Repaint/Input draw the same control tree.
+        private AvatarScanResult layoutScan;
+        private bool layoutHasAvatar;
+        private bool layoutHasRollback;
+        private bool layoutHasPendingUpdate;
+        private bool layoutShowLogo;
+        private bool layoutShowIndividualFixes;
+        private int layoutLang;
+
         [MenuItem("Vtool/Avatar Auto-Fixer Pro")]
         public static void ShowWindow()
         {
@@ -34,13 +43,41 @@ namespace XVR.Tools
             stylesReady = false;
             AutoDetectAvatar();
             LoadLogo();
+            RefreshLayoutCache();
         }
 
         private void OnSelectionChange() { if (targetAvatar == null) Repaint(); }
 
+        private void RefreshLayoutCache()
+        {
+            layoutHasAvatar = targetAvatar != null;
+            layoutHasRollback = layoutHasAvatar && VtoolAvatarRollback.HasRollback(targetAvatar);
+            layoutHasPendingUpdate = VtoolPackageUpdateHandler.HasPendingUpdate;
+            layoutShowLogo = logoTexture != null;
+            layoutShowIndividualFixes = showIndividualFixes;
+            layoutLang = (int)L.Language;
+            layoutScan = layoutHasAvatar ? VtoolAvatarScan.Scan(targetAvatar) : null;
+        }
+
+        private void Defer(System.Action action)
+        {
+            if (action == null) return;
+            EditorApplication.delayCall += () =>
+            {
+                if (this == null) return;
+                try { action(); }
+                finally { Repaint(); }
+            };
+        }
+
         private void OnGUI()
         {
             InitStyles();
+
+            // Must refresh only on Layout — otherwise control counts diverge across events.
+            if (Event.current.type == EventType.Layout)
+                RefreshLayoutCache();
+
             scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
             try
             {
@@ -49,7 +86,7 @@ namespace XVR.Tools
                 DrawAvatarPicker();
                 DrawRollbackBanner();
 
-                if (targetAvatar == null)
+                if (!layoutHasAvatar)
                 {
                     EditorGUILayout.HelpBox(L.T("assign.avatar") ?? string.Empty, MessageType.Info);
                     DrawSupportFooter();
@@ -65,7 +102,7 @@ namespace XVR.Tools
                 }, GUILayout.Height(26));
                 GUILayout.Space(8);
 
-                var scan = VtoolAvatarScan.Scan(targetAvatar);
+                var scan = layoutScan ?? VtoolAvatarScan.Scan(targetAvatar);
 
                 switch (tabIndex)
                 {
@@ -131,11 +168,8 @@ namespace XVR.Tools
 
         private void Caption(string key)
         {
-            if (string.IsNullOrEmpty(key)) return;
-            string text = L.T(key);
-            if (string.IsNullOrEmpty(text)) return;
-
-            // Use GUILayout.Label — EditorGUILayout.LabelField(string, GUIStyle) NREs when style is null.
+            // Always emit the same controls (never early-out) so Layout/Repaint stay matched.
+            string text = string.IsNullOrEmpty(key) ? string.Empty : (L.T(key) ?? string.Empty);
             GUILayout.Label(text, CaptionStyle());
             GUILayout.Space(2);
         }
@@ -166,8 +200,11 @@ namespace XVR.Tools
                 EditorGUILayout.BeginHorizontal();
                 try
                 {
-                    if (logoTexture != null)
+                    // Fixed logo slot every frame (texture or empty)
+                    if (layoutShowLogo && logoTexture != null)
                         GUILayout.Label(logoTexture, GUILayout.Width(48), GUILayout.Height(48));
+                    else
+                        GUILayout.Label(GUIContent.none, GUILayout.Width(48), GUILayout.Height(48));
 
                     EditorGUILayout.BeginVertical();
                     try
@@ -185,10 +222,12 @@ namespace XVR.Tools
                     try
                     {
                         GUILayout.Label(L.T("lang.label") ?? "Language", CaptionStyle());
-                        int lang = (int)L.Language;
-                        int next = EditorGUILayout.Popup(lang, L.LanguageDisplayNames);
-                        if (next != lang && next >= 0 && next <= 2)
-                            L.Language = (VtoolLanguage)next;
+                        int next = EditorGUILayout.Popup(layoutLang, L.LanguageDisplayNames);
+                        if (next != layoutLang && next >= 0 && next <= 2)
+                        {
+                            int lang = next;
+                            Defer(() => L.Language = (VtoolLanguage)lang);
+                        }
                     }
                     finally
                     {
@@ -230,10 +269,10 @@ namespace XVR.Tools
 
         private void DrawUpdateBanner()
         {
-            if (!VtoolPackageUpdateHandler.HasPendingUpdate) return;
+            if (!layoutHasPendingUpdate) return;
             EditorGUILayout.HelpBox(L.T("update.detected") ?? "Update detected.", MessageType.Info);
             if (GUILayout.Button(L.T("btn.apply_update") ?? "Apply Update"))
-                VtoolPackageUpdateHandler.CheckForPackageUpdate(silent: false, force: true);
+                Defer(() => VtoolPackageUpdateHandler.CheckForPackageUpdate(silent: false, force: true));
         }
 
         private void DrawAvatarPicker()
@@ -250,11 +289,12 @@ namespace XVR.Tools
                     GUILayout.FlexibleSpace();
                     if (GUILayout.Button(new GUIContent(L.T("btn.use_selected") ?? "Use Selected", L.T("tip.use_selected") ?? string.Empty), GUILayout.Width(120)))
                     {
-                        if (Selection.activeGameObject != null)
-                            targetAvatar = Selection.activeGameObject;
+                        var sel = Selection.activeGameObject;
+                        if (sel != null)
+                            Defer(() => targetAvatar = sel);
                     }
                     if (GUILayout.Button(new GUIContent(L.T("btn.auto_detect") ?? "Auto-Detect", L.T("tip.auto_detect") ?? string.Empty), GUILayout.Width(120)))
-                        AutoDetectAvatar();
+                        Defer(AutoDetectAvatar);
                 }
                 finally
                 {
@@ -269,18 +309,25 @@ namespace XVR.Tools
 
         private void DrawRollbackBanner()
         {
-            if (targetAvatar == null || !VtoolAvatarRollback.HasRollback(targetAvatar)) return;
+            // Always reserve the same controls when an avatar is assigned.
+            if (!layoutHasAvatar) return;
 
             EditorGUILayout.BeginVertical(panelStyle ?? EditorStyles.helpBox ?? GUI.skin.box);
             try
             {
-                GUILayout.Label(L.T("rollback.banner") ?? string.Empty, CaptionStyle());
+                bool prevEnabled = GUI.enabled;
+                GUI.enabled = layoutHasRollback;
+                GUILayout.Label(layoutHasRollback
+                    ? (L.T("rollback.banner") ?? string.Empty)
+                    : (L.T("rollback.none") ?? "No rollback snapshot yet."), CaptionStyle());
                 var prev = GUI.backgroundColor;
-                GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
+                if (layoutHasRollback)
+                    GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
                 if (GUILayout.Button(new GUIContent(L.T("btn.rollback") ?? "Rollback", L.T("tip.rollback") ?? string.Empty), GUILayout.Height(30)))
-                    RunRollback();
+                    Defer(RunRollback);
                 GUI.backgroundColor = prev;
                 Caption("cap.rollback");
+                GUI.enabled = prevEnabled;
             }
             finally
             {
@@ -350,6 +397,8 @@ namespace XVR.Tools
                 }
                 if (!string.IsNullOrEmpty(issue.FixHint))
                     GUILayout.Label(issue.FixHint, CaptionStyle());
+                else
+                    GUILayout.Label(string.Empty, CaptionStyle());
             }
             finally
             {
@@ -363,34 +412,44 @@ namespace XVR.Tools
 
         private void DrawCheckTab(AvatarScanResult scan)
         {
+            if (scan == null) return;
+
             DrawSection(L.T("sec.status"), () =>
             {
-                EditorGUILayout.HelpBox(scan.Summary,
+                EditorGUILayout.HelpBox(scan.Summary ?? string.Empty,
                     scan.BlockerCount > 0 ? MessageType.Error : scan.WarningCount > 0 ? MessageType.Warning : MessageType.Info);
             });
 
-            if (scan.BlockerCount > 0)
+            // Always draw the three outcome sections so Layout/Repaint stay matched.
+            DrawSection(L.TF("sec.blockers", scan.BlockerCount) ?? "Blockers", () =>
             {
-                DrawSection(L.TF("sec.blockers", scan.BlockerCount), () =>
+                if (scan.BlockerCount <= 0)
                 {
-                    foreach (var i in scan.Issues)
-                        if (i.Severity == IssueSeverity.Blocker) IssueRow(i);
-                });
-            }
+                    GUILayout.Label(L.T("result.no_blockers") ?? "No blockers.", CaptionStyle());
+                    return;
+                }
+                foreach (var i in scan.Issues)
+                    if (i.Severity == IssueSeverity.Blocker) IssueRow(i);
+            });
 
-            if (scan.WarningCount > 0)
+            DrawSection(L.TF("sec.warnings", scan.WarningCount) ?? "Warnings", () =>
             {
-                DrawSection(L.TF("sec.warnings", scan.WarningCount), () =>
+                if (scan.WarningCount <= 0)
                 {
-                    foreach (var i in scan.Issues)
-                        if (i.Severity == IssueSeverity.Warning) IssueRow(i);
-                });
-            }
+                    GUILayout.Label(L.T("result.no_warnings") ?? "No warnings.", CaptionStyle());
+                    return;
+                }
+                foreach (var i in scan.Issues)
+                    if (i.Severity == IssueSeverity.Warning) IssueRow(i);
+            });
 
-            if (scan.BlockerCount == 0 && scan.WarningCount == 0)
+            DrawSection(L.T("sec.result") ?? "Result", () =>
             {
-                DrawSection(L.T("sec.result"), () => GUILayout.Label(L.T("result.all_ok") ?? "OK", okStyle ?? CaptionStyle()));
-            }
+                if (scan.BlockerCount == 0 && scan.WarningCount == 0)
+                    GUILayout.Label(L.T("result.all_ok") ?? "OK", okStyle ?? CaptionStyle());
+                else
+                    GUILayout.Label(L.T("result.has_issues") ?? "Issues listed above.", CaptionStyle());
+            });
 
             DrawSection(L.T("sec.performance"), () =>
             {
@@ -426,56 +485,63 @@ namespace XVR.Tools
 
         private void DrawFixTab(AvatarScanResult scan)
         {
+            if (scan == null) return;
+
             DrawSection(L.T("sec.quick"), () =>
             {
                 GUILayout.Label(L.T("fix.intro") ?? string.Empty, CaptionStyle());
                 GUILayout.Space(6);
 
                 if (ActionButton("btn.backup", "tip.backup", "cap.backup", 28f))
-                    BackupAvatar();
+                    Defer(BackupAvatar);
 
-                if (VtoolAvatarRollback.HasRollback(targetAvatar))
+                // Always same rollback controls (enabled only when snapshot exists)
                 {
+                    bool prevEnabled = GUI.enabled;
+                    GUI.enabled = layoutHasRollback;
                     var prevRollback = GUI.backgroundColor;
-                    GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
+                    if (layoutHasRollback)
+                        GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
                     if (GUILayout.Button(new GUIContent(L.T("btn.rollback") ?? "Rollback", L.T("tip.rollback") ?? string.Empty), GUILayout.Height(28)))
-                        RunRollback();
+                        Defer(RunRollback);
                     GUI.backgroundColor = prevRollback;
                     Caption("cap.rollback");
+                    GUI.enabled = prevEnabled;
                 }
 
                 GUILayout.Space(4);
                 var prev = GUI.backgroundColor;
                 GUI.backgroundColor = scan.BlockerCount > 0 ? new Color(0.28f, 0.72f, 0.38f) : new Color(0.4f, 0.55f, 0.45f);
                 if (GUILayout.Button(new GUIContent(L.T("btn.fix_all") ?? "Fix All", L.T("tip.fix_all") ?? string.Empty), GUILayout.Height(36)))
-                    RunFixAll();
+                    Defer(RunFixAll);
                 GUI.backgroundColor = prev;
                 Caption("cap.fix_all");
 
                 GUILayout.Space(6);
                 showIndividualFixes = EditorGUILayout.Foldout(showIndividualFixes, L.T("fold.individual") ?? "Individual fixes", true);
-                if (showIndividualFixes)
+
+                // Use Layout-time foldout snapshot so expand/collapse does not desync Layout vs input/Repaint.
+                if (layoutShowIndividualFixes)
                 {
                     EditorGUI.indentLevel++;
                     try
                     {
                         if (ActionButton("btn.fix_mats", "tip.fix_mats"))
-                            WithUndo(() => VtoolAvatarFixes.FixMissingMaterials(targetAvatar, allowPlaceholder: false));
+                            Defer(() => WithUndo(() => VtoolAvatarFixes.FixMissingMaterials(targetAvatar, allowPlaceholder: false)));
                         if (ActionButton("btn.add_pipeline", "tip.add_pipeline"))
-                            WithUndo(() => VtoolAvatarFixes.EnsurePipelineManager(targetAvatar));
+                            Defer(() => WithUndo(() => VtoolAvatarFixes.EnsurePipelineManager(targetAvatar)));
                         if (ActionButton("btn.fix_bounds", "tip.fix_bounds"))
-                            WithUndo(() => VtoolAvatarFixes.FixMeshBounds(targetAvatar));
+                            Defer(() => WithUndo(() => VtoolAvatarFixes.FixMeshBounds(targetAvatar)));
                         if (ActionButton("btn.fix_audio", "tip.fix_audio"))
-                            WithUndo(() => { int p; VtoolAvatarFixes.FixAudioSources(targetAvatar, out p); });
+                            Defer(() => WithUndo(() => { int p; VtoolAvatarFixes.FixAudioSources(targetAvatar, out p); }));
                         if (ActionButton("btn.view_pos", "tip.view_pos"))
-                            WithUndo(() => VtoolAvatarFixes.AlignViewPosition(targetAvatar, onlyIfUnset: true));
+                            Defer(() => WithUndo(() => VtoolAvatarFixes.AlignViewPosition(targetAvatar, onlyIfUnset: true)));
                         if (ActionButton("btn.lip_sync", "tip.lip_sync"))
-                            WithUndo(() => VtoolAvatarFixes.SetupLipSync(targetAvatar, onlyIfUnset: true));
+                            Defer(() => WithUndo(() => VtoolAvatarFixes.SetupLipSync(targetAvatar, onlyIfUnset: true)));
 
                         EditorGUILayout.Space(4);
                         GUILayout.Label(L.T("label.optional") ?? string.Empty, CaptionStyle());
 
-                        // Single button path every frame (Layout/Repaint must match)
                         string pbLabel = scan.PhysBoneCount > 256
                             ? (L.TF("btn.reduce_pb_n", scan.PhysBoneCount) ?? "Reduce PhysBones")
                             : (L.T("btn.reduce_pb") ?? "Reduce PhysBones");
@@ -483,18 +549,18 @@ namespace XVR.Tools
                         if (scan.PhysBoneCount > 256)
                             GUI.backgroundColor = new Color(0.85f, 0.35f, 0.3f);
                         if (GUILayout.Button(new GUIContent(pbLabel, L.T("tip.reduce_pb") ?? string.Empty)))
-                            RunReducePhysBones();
+                            Defer(RunReducePhysBones);
                         GUI.backgroundColor = prevPb;
                         Caption("cap.reduce_pb");
 
                         if (ActionButton("btn.remove_missing", "tip.remove_missing"))
-                            RunRemoveMissingScripts();
+                            Defer(RunRemoveMissingScripts);
                         if (ActionButton("btn.placeholder_mats", "tip.placeholder_mats"))
-                            RunPlaceholderMaterials();
+                            Defer(RunPlaceholderMaterials);
                         if (ActionButton("btn.disable_others", "tip.disable_others"))
-                            RunDisableOtherAvatars();
+                            Defer(RunDisableOtherAvatars);
                         if (ActionButton("btn.clear_blueprint", "tip.clear_blueprint"))
-                            RunClearBlueprintId();
+                            Defer(RunClearBlueprintId);
                     }
                     finally
                     {
@@ -506,6 +572,8 @@ namespace XVR.Tools
 
         private void DrawTexturesTab(AvatarScanResult scan)
         {
+            if (scan == null) return;
+
             DrawSection(L.T("sec.tex_size"), () =>
             {
                 Stat(L.T("stat.textures"), scan.TextureCount.ToString());
@@ -514,49 +582,58 @@ namespace XVR.Tools
                 Stat(L.T("stat.mem_short"), $"~{scan.TextureMemoryMB:F0} MB", scan.TextureMemoryMB > 100 ? warnStyle : null);
 
                 GUILayout.Space(6);
-                textureCapSize = EditorGUILayout.IntPopup(L.T("field.cap_to"), textureCapSize,
-                    new[] { "512", "1024", L.T("cap.vrchat_max") }, new[] { 512, 1024, 2048 });
+                textureCapSize = EditorGUILayout.IntPopup(L.T("field.cap_to") ?? "Cap to", textureCapSize,
+                    new[] { "512", "1024", L.T("cap.vrchat_max") ?? "2048" }, new[] { 512, 1024, 2048 });
 
                 var prev = GUI.backgroundColor;
                 GUI.backgroundColor = Accent;
                 if (GUILayout.Button(new GUIContent(L.TF("btn.reduce_tex", textureCapSize) ?? "Reduce", L.T("tip.reduce_tex") ?? string.Empty), GUILayout.Height(32)))
                 {
-                    if (EditorUtility.DisplayDialog(L.T("dlg.tex.reduce_title"),
-                        L.TF("dlg.tex.reduce_body", textureCapSize),
-                        L.T("dlg.reduce"), L.T("dlg.cancel")))
+                    int cap = textureCapSize;
+                    Defer(() =>
                     {
+                        if (!EditorUtility.DisplayDialog(L.T("dlg.tex.reduce_title"),
+                            L.TF("dlg.tex.reduce_body", cap),
+                            L.T("dlg.reduce"), L.T("dlg.cancel")))
+                            return;
+
                         var textures = VtoolAvatarFixes.CollectTextures(targetAvatar);
                         VtoolAvatarRollback.EnsureCapture(targetAvatar);
                         VtoolAvatarRollback.RecordTextures(targetAvatar, textures);
-                        int n = VtoolAvatarFixes.CapTextureSizes(targetAvatar, textureCapSize);
+                        int n = VtoolAvatarFixes.CapTextureSizes(targetAvatar, cap);
                         EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.tex.reduce_done", n), L.T("dlg.ok"));
-                        Repaint();
-                    }
+                    });
                 }
                 GUI.backgroundColor = prev;
                 Caption("cap.reduce_tex");
 
-                if (GUILayout.Button(new GUIContent(L.T("btn.restore_tex"), L.T("tip.restore_tex")), GUILayout.Height(26)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.restore_tex") ?? "Restore", L.T("tip.restore_tex") ?? string.Empty), GUILayout.Height(26)))
                 {
-                    if (EditorUtility.DisplayDialog(L.T("dlg.tex.restore_title"),
-                        L.T("dlg.tex.restore_body"),
-                        L.T("dlg.restore"), L.T("dlg.cancel")))
+                    Defer(() =>
                     {
+                        if (!EditorUtility.DisplayDialog(L.T("dlg.tex.restore_title"),
+                            L.T("dlg.tex.restore_body"),
+                            L.T("dlg.restore"), L.T("dlg.cancel")))
+                            return;
+
                         var textures = VtoolAvatarFixes.CollectTextures(targetAvatar);
                         VtoolAvatarRollback.EnsureCapture(targetAvatar);
                         VtoolAvatarRollback.RecordTextures(targetAvatar, textures);
                         int n = VtoolAvatarFixes.RestoreTextureSizes(targetAvatar);
                         EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.tex.restore_done", n), L.T("dlg.ok"));
-                        Repaint();
-                    }
+                    });
                 }
 
-                if (GUILayout.Button(new GUIContent(L.T("btn.mipmaps"), L.T("tip.mipmaps")), GUILayout.Height(24)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.mipmaps") ?? "Mipmaps", L.T("tip.mipmaps") ?? string.Empty), GUILayout.Height(24)))
                 {
-                    if (EditorUtility.DisplayDialog(L.T("dlg.tex.mip_title"),
-                        L.T("dlg.tex.mip_body"),
-                        L.T("dlg.enable"), L.T("dlg.cancel")))
+                    Defer(() =>
+                    {
+                        if (!EditorUtility.DisplayDialog(L.T("dlg.tex.mip_title"),
+                            L.T("dlg.tex.mip_body"),
+                            L.T("dlg.enable"), L.T("dlg.cancel")))
+                            return;
                         WithUndo(() => VtoolAvatarFixes.EnableTextureMipmaps(targetAvatar), trackTextures: true);
+                    });
                 }
             });
 
@@ -567,15 +644,17 @@ namespace XVR.Tools
 
                 if (GUILayout.Button(new GUIContent(L.T("btn.quest_convert") ?? "Convert", L.T("tip.quest_convert") ?? string.Empty), GUILayout.Height(30)))
                 {
-                    if (EditorUtility.DisplayDialog(L.T("dlg.quest.title"),
-                        L.T("dlg.quest.body"),
-                        L.T("dlg.convert"), L.T("dlg.cancel")))
+                    Defer(() =>
                     {
+                        if (!EditorUtility.DisplayDialog(L.T("dlg.quest.title"),
+                            L.T("dlg.quest.body"),
+                            L.T("dlg.convert"), L.T("dlg.cancel")))
+                            return;
+
                         VtoolAvatarRollback.EnsureCapture(targetAvatar);
                         int n = VtoolAvatarFixes.ConvertToQuestShaders(targetAvatar, true);
                         EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.quest.done", n), L.T("dlg.ok"));
-                        Repaint();
-                    }
+                    });
                 }
                 Caption("cap.quest_convert");
             });

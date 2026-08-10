@@ -185,6 +185,9 @@ namespace XVR.Tools
             Add("rollback.banner", "Rollback point saved from before Vtool changes.",
                 "تم حفظ نقطة تراجع من قبل تغييرات Vtool.",
                 "Punto de rollback guardado antes de los cambios de Vtool.");
+            Add("rollback.none", "No rollback snapshot yet. Use Backup or Fix All first.",
+                "لا توجد نقطة تراجع بعد. استخدم النسخ الاحتياطي أو إصلاح الكل أولاً.",
+                "Aún no hay snapshot de rollback. Usa Copia o Fix All primero.");
             Add("btn.rollback", "Rollback Avatar", "تراجع الأفاتار", "Revertir avatar");
             Add("tip.rollback", "Restores the avatar copy saved before Vtool changes. Does not delete your project files.",
                 "يستعيد نسخة الأفاتار المحفوظة قبل تغييرات Vtool. لا يحذف ملفات المشروع.",
@@ -202,6 +205,9 @@ namespace XVR.Tools
             Add("sec.vrchat", "VRChat", "VRChat", "VRChat", true);
             Add("sec.textures", "Textures", "الأنسجة", "Texturas");
             Add("result.all_ok", "All common checks passed.", "اجتازت كل الفحوصات الشائعة.", "Todas las comprobaciones comunes pasaron.");
+            Add("result.no_blockers", "No blockers.", "لا توجد موانع رفع.", "Sin bloqueos.");
+            Add("result.no_warnings", "No warnings.", "لا توجد تحذيرات.", "Sin advertencias.");
+            Add("result.has_issues", "Issues listed above.", "المشكلات مدرجة أعلاه.", "Problemas listados arriba.");
 
             Add("stat.polygons", "Polygons", "المضلعات", "Polígonos");
             Add("stat.skinned", "Skinned meshes", "شبكات الجلد", "Mallas skinned");
