@@ -18,6 +18,11 @@ Scan your avatar, fix the usual SDK problems, shrink textures, then upload like 
 
 <br/>
 
+> [!IMPORTANT]
+> **Please make sure to read the [Important](#known-issue-head-disappearing) section** before using Fix All / Auto Fix. Prefer Individual fixes.
+
+<br/>
+
 ## Overview
 
 Vtool is a Unity Editor window for VRChat avatar creators. Point it at your avatar root and it tells you what is wrong before you upload.
