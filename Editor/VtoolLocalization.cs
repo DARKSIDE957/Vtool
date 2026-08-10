@@ -38,11 +38,12 @@ namespace XVR.Tools
             "Español (Spanish)"
         };
 
+        // All UI / dialog text should go through T or TF so Arabic is shaped for IMGUI.
         public static string T(string key)
         {
             EnsureReady();
             if (!Table.TryGetValue(key, out var e))
-                return key;
+                return Prepare(key);
 
             if (e.VrchatTermOnly || Language == VtoolLanguage.English)
                 return e.En;
@@ -52,7 +53,11 @@ namespace XVR.Tools
                 return e.En;
 
             if (Language == VtoolLanguage.Arabic)
+            {
+                // Shape Arabic only, then append English — never Fix the combined string
+                // (that would reverse chunk order and put English first).
                 return VtoolArabicImgui.Fix(local) + " (" + e.En + ")";
+            }
 
             return local + " (" + e.En + ")";
         }
@@ -61,7 +66,7 @@ namespace XVR.Tools
         {
             EnsureReady();
             if (!Table.TryGetValue(key, out var e))
-                return key;
+                return Prepare(key);
 
             try
             {
@@ -90,16 +95,36 @@ namespace XVR.Tools
         {
             EnsureReady();
             if (!Table.TryGetValue(key, out var e))
-                return key;
+                return Prepare(key);
             switch (Language)
             {
                 case VtoolLanguage.Arabic:
-                    return VtoolArabicImgui.Fix(string.IsNullOrEmpty(e.Ar) ? e.En : e.Ar);
+                    return Prepare(string.IsNullOrEmpty(e.Ar) ? e.En : e.Ar);
                 case VtoolLanguage.Spanish:
                     return string.IsNullOrEmpty(e.Es) ? e.En : e.Es;
                 default:
                     return e.En;
             }
+        }
+
+        public static string Prepare(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            if (Language == VtoolLanguage.Arabic || ContainsArabic(text))
+                return VtoolArabicImgui.Fix(text);
+            return text;
+        }
+
+        private static bool ContainsArabic(string s)
+        {
+            foreach (char c in s)
+            {
+                if (c >= '\u0600' && c <= '\u06FF') return true;
+                if (c >= '\u0750' && c <= '\u077F') return true;
+                if (c >= '\uFB50' && c <= '\uFDFF') return true;
+                if (c >= '\uFE70' && c <= '\uFEFF') return true;
+            }
+            return false;
         }
 
         public static string EnglishOf(string key)
@@ -149,6 +174,13 @@ namespace XVR.Tools
 
             Add("update.detected", "Update detected. Reloading...", "تم اكتشاف تحديث. جارٍ إعادة التحميل...", "Actualización detectada. Recargando...");
             Add("btn.apply_update", "Apply Update Now", "تطبيق التحديث الآن", "Aplicar actualización ahora");
+            Add("update.dialog_title", "Vtool Update", "تحديث Vtool", "Actualización de Vtool");
+            Add("update.already_latest", "Already on the latest installed package.",
+                "أنت بالفعل على أحدث حزمة مثبتة.",
+                "Ya tienes el paquete instalado más reciente.");
+            Add("update.reload_body", "A new Vtool package was installed while Unity was open.\n\nUnity will refresh and reload now so the update takes effect.",
+                "تم تثبيت حزمة Vtool جديدة أثناء فتح Unity.\n\nسيتم تحديث Unity وإعادة التحميل الآن لتطبيق التحديث.",
+                "Se instaló un paquete nuevo de Vtool con Unity abierto.\n\nUnity se actualizará y recargará ahora para aplicar el cambio.");
 
             Add("rollback.banner", "Rollback point saved from before Vtool changes.",
                 "تم حفظ نقطة تراجع من قبل تغييرات Vtool.",
@@ -316,17 +348,17 @@ namespace XVR.Tools
                 "يفعّل mipmaps في إعدادات استيراد أنسجة الأفاتار.",
                 "Activa mipmaps en los ajustes de importación de texturas del avatar.");
             Add("sec.quest", "Quest / Android", "Quest / Android", "Quest / Android", true);
-            Add("quest.intro", "Quest uploads need VRChat/Mobile shaders. Duplicate materials first to keep PC versions.",
-                "رفع Quest يحتاج شيدرات VRChat/Mobile. تُنسخ المواد أولاً للإبقاء على نسخة PC.",
-                "Las subidas Quest necesitan shaders VRChat/Mobile. Se duplican materiales para conservar las de PC.");
+            Add("quest.intro", "Quest uploads need VRChat/Mobile shaders. Materials are duplicated and colors/textures are copied so PC versions stay intact.",
+                "رفع Quest يحتاج شيدرات VRChat/Mobile. تُنسخ المواد مع الألوان والأنسجة للإبقاء على نسخ PC.",
+                "Las subidas Quest necesitan shaders VRChat/Mobile. Se duplican materiales copiando colores/texturas para conservar PC.");
             Add("stat.non_quest", "Non-Quest materials", "مواد غير متوافقة مع Quest", "Materiales no Quest");
             Add("btn.quest_convert", "Convert to Quest shaders", "تحويل إلى شيدرات Quest", "Convertir a shaders Quest");
-            Add("tip.quest_convert", "Duplicates materials then switches them to VRChat/Mobile/Toon Lit.",
-                "ينسخ المواد ثم يحوّلها إلى VRChat/Mobile/Toon Lit.",
-                "Duplica materiales y los cambia a VRChat/Mobile/Toon Lit.");
-            Add("cap.quest_convert", "Duplicates materials first so PC versions can be kept.",
-                "ينسخ المواد أولاً للإبقاء على نسخ PC.",
-                "Duplica materiales primero para conservar versiones PC.");
+            Add("tip.quest_convert", "Duplicates materials, prefers Toon Standard/Toon Lit, and copies main texture + color so Quest colors stay closer to PC.",
+                "ينسخ المواد، يفضّل Toon Standard/Toon Lit، وينسخ النسيج الرئيسي واللون لتقارب ألوان Quest من PC.",
+                "Duplica materiales, prefiere Toon Standard/Toon Lit y copia textura/color principal para acercar Quest a PC.");
+            Add("cap.quest_convert", "Duplicates materials and transfers texture/color. Quest still looks flatter than PC shaders.",
+                "ينسخ المواد وينقل النسيج واللون. مظهر Quest يبقى أبسط من شيدرات PC.",
+                "Duplica materiales y transfiere textura/color. Quest sigue viéndose más plano que en PC.");
 
             // Dialogs common
             Add("dlg.ok", "OK", "حسناً", "OK");
@@ -429,9 +461,9 @@ namespace XVR.Tools
                 "يغيّر إعدادات استيراد أنسجة هذا الأفاتار. متابعة؟",
                 "Cambia los ajustes de importación de texturas de este avatar. ¿Continuar?");
             Add("dlg.quest.title", "Quest Conversion", "تحويل Quest", "Conversión Quest");
-            Add("dlg.quest.body", "Duplicate materials then convert to VRChat/Mobile/Toon Lit?",
-                "نسخ المواد ثم التحويل إلى VRChat/Mobile/Toon Lit؟",
-                "¿Duplicar materiales y convertir a VRChat/Mobile/Toon Lit?");
+            Add("dlg.quest.body", "Duplicate materials, convert to VRChat Mobile shaders, and copy textures/colors for better Quest look?",
+                "نسخ المواد، التحويل إلى شيدرات VRChat Mobile، ونسخ الأنسجة/الألوان لمظهر Quest أفضل؟",
+                "¿Duplicar materiales, convertir a shaders VRChat Mobile y copiar texturas/colores para mejor aspecto Quest?");
             Add("dlg.quest.done", "Converted {0} material slot(s).",
                 "حُوّلت {0} خانة مادة.",
                 "Se convirtieron {0} ranura(s) de material.");

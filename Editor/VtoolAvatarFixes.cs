@@ -34,11 +34,34 @@ namespace XVR.Tools
 
         private static readonly string[] QuestShaderNames =
         {
+            "VRChat/Mobile/Toon Standard",
             "VRChat/Mobile/Toon Lit",
+            "VRChat/Mobile/Toon Lit Cutout",
             "VRChat/Mobile/Standard Lite",
             "VRChat/Mobile/Diffuse",
             "VRChat/Mobile/Bumped Diffuse",
             "VRChat/Mobile/Particles/Additive"
+        };
+
+        private static readonly string[] QuestMainTexNames =
+        {
+            "_MainTex", "_BaseMap", "_BaseColorMap", "_Diffuse", "_Albedo",
+            "_ColorMap", "_MainColorTex", "_MainTex2D", "_Texture", "_Tex"
+        };
+
+        private static readonly string[] QuestColorNames =
+        {
+            "_Color", "_BaseColor", "_MainColor", "_TintColor", "_Color1", "_LitColor"
+        };
+
+        private static readonly string[] QuestEmissionTexNames =
+        {
+            "_EmissionMap", "_EmissionTex", "_EmissiveColorMap", "_Emission"
+        };
+
+        private static readonly string[] QuestEmissionColorNames =
+        {
+            "_EmissionColor", "_EmissiveColor", "_EmissionColour"
         };
 
         private static Material placeholderMaterial;
@@ -502,9 +525,6 @@ namespace XVR.Tools
 
         public static int ConvertToQuestShaders(GameObject avatar, bool duplicateMaterials)
         {
-            var shader = FindQuestShader();
-            if (shader == null) return 0;
-
             var renderers = avatar.GetComponentsInChildren<Renderer>(true);
             var processed = new Dictionary<Material, Material>();
             int n = 0;
@@ -518,7 +538,10 @@ namespace XVR.Tools
                 for (int i = 0; i < mats.Length; i++)
                 {
                     var mat = mats[i];
-                    if (mat == null || mat.shader == shader) continue;
+                    if (mat == null || IsQuestMobileShader(mat.shader)) continue;
+
+                    var shader = PickQuestShader(mat);
+                    if (shader == null) continue;
 
                     Material target = mat;
                     if (duplicateMaterials)
@@ -532,8 +555,9 @@ namespace XVR.Tools
                     else
                     {
                         Undo.RecordObject(mat, "Quest Shader");
-                        mat.shader = shader;
+                        ApplyQuestShaderKeepingColors(mat, shader);
                         EditorUtility.SetDirty(mat);
+                        target = mat;
                     }
                     mats[i] = target;
                     changed = true;
@@ -640,6 +664,40 @@ namespace XVR.Tools
             return null;
         }
 
+        private static Shader PickQuestShader(Material source)
+        {
+            bool cutout = LooksLikeCutout(source);
+            if (cutout)
+            {
+                var cut = Shader.Find("VRChat/Mobile/Toon Lit Cutout");
+                if (cut != null) return cut;
+            }
+
+            // Prefer Toon Standard when present (newer SDK) for better color / lighting fidelity.
+            var toonStd = Shader.Find("VRChat/Mobile/Toon Standard");
+            if (toonStd != null) return toonStd;
+
+            var toonLit = Shader.Find("VRChat/Mobile/Toon Lit");
+            if (toonLit != null) return toonLit;
+
+            return FindQuestShader();
+        }
+
+        private static bool IsQuestMobileShader(Shader s)
+        {
+            if (s == null) return false;
+            string n = s.name;
+            return n.StartsWith("VRChat/Mobile/") || n.StartsWith("Hidden/VRCFallback/") || n.StartsWith("Mobile/");
+        }
+
+        private static bool LooksLikeCutout(Material m)
+        {
+            if (m == null) return false;
+            if (m.HasProperty("_Cutoff") && m.GetFloat("_Cutoff") > 0.01f) return true;
+            string sn = m.shader != null ? m.shader.name.ToLowerInvariant() : "";
+            return sn.Contains("cutout") || sn.Contains("cut out") || sn.Contains("clip");
+        }
+
         private static Material DuplicateQuestMaterial(Material source, Shader shader)
         {
             EnsureFolder("Assets/Vtool");
@@ -647,9 +705,157 @@ namespace XVR.Tools
                 AssetDatabase.CreateFolder("Assets/Vtool", "QuestMaterials");
             string safe = string.IsNullOrEmpty(source.name) ? "Mat" : source.name.Replace("/", "_");
             string path = AssetDatabase.GenerateUniqueAssetPath($"Assets/Vtool/QuestMaterials/{safe}_Quest.mat");
-            var dup = new Material(source) { shader = shader };
+
+            // Build from the Quest shader, then copy appearance — avoids lost lilToon/Poiyomi props.
+            var dup = new Material(shader) { name = source.name + "_Quest" };
+            TransferQuestAppearance(source, dup);
             AssetDatabase.CreateAsset(dup, path);
             return dup;
+        }
+
+        private static void ApplyQuestShaderKeepingColors(Material mat, Shader shader)
+        {
+            Texture mainTex = FindTexture(mat, QuestMainTexNames) ?? mat.mainTexture;
+            Vector2 scale = Vector2.one;
+            Vector2 offset = Vector2.zero;
+            string texProp = FindTexturePropertyName(mat, QuestMainTexNames);
+            if (!string.IsNullOrEmpty(texProp))
+            {
+                scale = mat.GetTextureScale(texProp);
+                offset = mat.GetTextureOffset(texProp);
+            }
+
+            Color color = ClampToLdr(FindColor(mat, QuestColorNames));
+            Texture emissionTex = FindTexture(mat, QuestEmissionTexNames);
+            Color emissionColor = ClampToLdr(FindColor(mat, QuestEmissionColorNames, Color.black));
+            float cutoff = mat.HasProperty("_Cutoff") ? mat.GetFloat("_Cutoff") : 0.5f;
+
+            mat.shader = shader;
+            ApplyQuestProperties(mat, mainTex, scale, offset, color, emissionTex, emissionColor, cutoff);
+        }
+
+        private static void TransferQuestAppearance(Material source, Material dest)
+        {
+            if (source == null || dest == null) return;
+
+            Texture mainTex = FindTexture(source, QuestMainTexNames) ?? source.mainTexture;
+            Vector2 scale = Vector2.one;
+            Vector2 offset = Vector2.zero;
+            string texProp = FindTexturePropertyName(source, QuestMainTexNames);
+            if (!string.IsNullOrEmpty(texProp))
+            {
+                scale = source.GetTextureScale(texProp);
+                offset = source.GetTextureOffset(texProp);
+            }
+            else if (mainTex != null)
+            {
+                scale = source.mainTextureScale;
+                offset = source.mainTextureOffset;
+            }
+
+            Color color = ClampToLdr(FindColor(source, QuestColorNames));
+            Texture emissionTex = FindTexture(source, QuestEmissionTexNames);
+            Color emissionColor = ClampToLdr(FindColor(source, QuestEmissionColorNames, Color.black));
+            float cutoff = source.HasProperty("_Cutoff") ? source.GetFloat("_Cutoff") : 0.5f;
+
+            ApplyQuestProperties(dest, mainTex, scale, offset, color, emissionTex, emissionColor, cutoff);
+        }
+
+        private static void ApplyQuestProperties(
+            Material dest,
+            Texture mainTex,
+            Vector2 scale,
+            Vector2 offset,
+            Color color,
+            Texture emissionTex,
+            Color emissionColor,
+            float cutoff)
+        {
+            if (dest.HasProperty("_MainTex"))
+            {
+                if (mainTex != null) dest.SetTexture("_MainTex", mainTex);
+                dest.SetTextureScale("_MainTex", scale);
+                dest.SetTextureOffset("_MainTex", offset);
+            }
+            else if (mainTex != null)
+            {
+                dest.mainTexture = mainTex;
+                dest.mainTextureScale = scale;
+                dest.mainTextureOffset = offset;
+            }
+
+            if (dest.HasProperty("_Color"))
+                dest.SetColor("_Color", color);
+            else
+                dest.color = color;
+
+            // Soften extreme tints that wash out or crush Quest lighting
+            if (dest.HasProperty("_Color"))
+            {
+                var c = dest.GetColor("_Color");
+                // Keep albedo mostly from the texture when tint is near-white
+                if (c.r > 0.95f && c.g > 0.95f && c.b > 0.95f)
+                    dest.SetColor("_Color", new Color(1f, 1f, 1f, c.a));
+            }
+
+            if (dest.HasProperty("_EmissionMap") && emissionTex != null)
+                dest.SetTexture("_EmissionMap", emissionTex);
+            if (dest.HasProperty("_EmissionColor") && emissionColor.maxColorComponent > 0.001f)
+                dest.SetColor("_EmissionColor", emissionColor);
+
+            if (dest.HasProperty("_Cutoff"))
+                dest.SetFloat("_Cutoff", Mathf.Clamp01(cutoff));
+        }
+
+        private static Texture FindTexture(Material m, string[] names)
+        {
+            if (m == null) return null;
+            foreach (var name in names)
+            {
+                if (!m.HasProperty(name)) continue;
+                var t = m.GetTexture(name);
+                if (t != null) return t;
+            }
+            return null;
+        }
+
+        private static string FindTexturePropertyName(Material m, string[] names)
+        {
+            if (m == null) return null;
+            foreach (var name in names)
+            {
+                if (!m.HasProperty(name)) continue;
+                if (m.GetTexture(name) != null) return name;
+            }
+            return null;
+        }
+
+        private static Color FindColor(Material m, string[] names) =>
+            FindColor(m, names, Color.white);
+
+        private static Color FindColor(Material m, string[] names, Color fallback)
+        {
+            if (m == null) return fallback;
+            foreach (var name in names)
+            {
+                if (!m.HasProperty(name)) continue;
+                return m.GetColor(name);
+            }
+            try { return m.color; }
+            catch { return fallback; }
+        }
+
+        private static Color ClampToLdr(Color c)
+        {
+            float max = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
+            if (max > 1f)
+            {
+                c.r /= max;
+                c.g /= max;
+                c.b /= max;
+            }
+            c.a = Mathf.Clamp01(c.a);
+            return c;
         }
 
         private static int GetSubMeshCount(Renderer r)

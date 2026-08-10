@@ -31,6 +31,7 @@ namespace XVR.Tools
 
         private void OnEnable()
         {
+            stylesReady = false;
             AutoDetectAvatar();
             LoadLogo();
         }
@@ -41,58 +42,102 @@ namespace XVR.Tools
         {
             InitStyles();
             scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
-
-            DrawHeader();
-            DrawUpdateBanner();
-            DrawAvatarPicker();
-            DrawRollbackBanner();
-
-            if (targetAvatar == null)
+            try
             {
-                EditorGUILayout.HelpBox(L.T("assign.avatar"), MessageType.Info);
+                DrawHeader();
+                DrawUpdateBanner();
+                DrawAvatarPicker();
+                DrawRollbackBanner();
+
+                if (targetAvatar == null)
+                {
+                    EditorGUILayout.HelpBox(L.T("assign.avatar") ?? string.Empty, MessageType.Info);
+                    DrawSupportFooter();
+                    return;
+                }
+
+                GUILayout.Space(8);
+                tabIndex = GUILayout.Toolbar(tabIndex, new[]
+                {
+                    L.T("tab.check") ?? "Check",
+                    L.T("tab.fix") ?? "Fix",
+                    L.T("tab.textures") ?? "Textures"
+                }, GUILayout.Height(26));
+                GUILayout.Space(8);
+
+                var scan = VtoolAvatarScan.Scan(targetAvatar);
+
+                switch (tabIndex)
+                {
+                    case 0: DrawCheckTab(scan); break;
+                    case 1: DrawFixTab(scan); break;
+                    case 2: DrawTexturesTab(scan); break;
+                }
+
                 DrawSupportFooter();
+            }
+            finally
+            {
                 EditorGUILayout.EndScrollView();
-                return;
             }
-
-            GUILayout.Space(8);
-            tabIndex = GUILayout.Toolbar(tabIndex, new[]
-            {
-                L.T("tab.check"),
-                L.T("tab.fix"),
-                L.T("tab.textures")
-            }, GUILayout.Height(26));
-            GUILayout.Space(8);
-
-            var scan = VtoolAvatarScan.Scan(targetAvatar);
-
-            switch (tabIndex)
-            {
-                case 0: DrawCheckTab(scan); break;
-                case 1: DrawFixTab(scan); break;
-                case 2: DrawTexturesTab(scan); break;
-            }
-
-            DrawSupportFooter();
-            EditorGUILayout.EndScrollView();
         }
 
         #region UI chrome
 
         private void InitStyles()
         {
-            if (stylesReady) return;
-            stylesReady = true;
+            // GUIStyles die after script reload; also EditorStyles can be null early in the frame.
+            if (stylesReady &&
+                headerStyle != null && subStyle != null && sectionStyle != null &&
+                panelStyle != null && captionStyle != null &&
+                okStyle != null && warnStyle != null && errStyle != null && linkStyle != null)
+                return;
 
-            headerStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 17, margin = new RectOffset(0, 0, 2, 0) };
-            subStyle = new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = Muted }, margin = new RectOffset(0, 0, 0, 0) };
-            sectionStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 12, margin = new RectOffset(0, 0, 4, 6) };
-            panelStyle = new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(12, 12, 10, 10), margin = new RectOffset(4, 4, 4, 4) };
-            captionStyle = new GUIStyle(EditorStyles.wordWrappedMiniLabel) { normal = { textColor = Muted } };
-            okStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.35f, 0.82f, 0.48f) } };
-            warnStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(1f, 0.68f, 0.2f) } };
-            errStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(0.95f, 0.35f, 0.35f) } };
-            linkStyle = new GUIStyle(EditorStyles.linkLabel) { alignment = TextAnchor.MiddleRight };
+            try
+            {
+                var bold = EditorStyles.boldLabel ?? GUI.skin.label;
+                var mini = EditorStyles.miniLabel ?? GUI.skin.label;
+                var help = EditorStyles.helpBox ?? GUI.skin.box;
+                var label = EditorStyles.label ?? GUI.skin.label;
+                var wrapMini = EditorStyles.wordWrappedMiniLabel ?? mini;
+                var link = EditorStyles.linkLabel ?? mini;
+
+                headerStyle = new GUIStyle(bold) { fontSize = 17, margin = new RectOffset(0, 0, 2, 0) };
+                subStyle = new GUIStyle(mini) { normal = { textColor = Muted }, margin = new RectOffset(0, 0, 0, 0) };
+                sectionStyle = new GUIStyle(bold) { fontSize = 12, margin = new RectOffset(0, 0, 4, 6) };
+                panelStyle = new GUIStyle(help) { padding = new RectOffset(12, 12, 10, 10), margin = new RectOffset(4, 4, 4, 4) };
+                captionStyle = new GUIStyle(wrapMini) { wordWrap = true, normal = { textColor = Muted } };
+                okStyle = new GUIStyle(label) { normal = { textColor = new Color(0.35f, 0.82f, 0.48f) } };
+                warnStyle = new GUIStyle(label) { normal = { textColor = new Color(1f, 0.68f, 0.2f) } };
+                errStyle = new GUIStyle(label) { normal = { textColor = new Color(0.95f, 0.35f, 0.35f) } };
+                linkStyle = new GUIStyle(link) { alignment = TextAnchor.MiddleRight };
+                stylesReady = captionStyle != null;
+            }
+            catch
+            {
+                stylesReady = false;
+                captionStyle = null;
+            }
+        }
+
+        private GUIStyle CaptionStyle()
+        {
+            if (captionStyle != null) return captionStyle;
+            if (EditorStyles.wordWrappedMiniLabel != null) return EditorStyles.wordWrappedMiniLabel;
+            if (EditorStyles.miniLabel != null) return EditorStyles.miniLabel;
+            if (EditorStyles.label != null) return EditorStyles.label;
+            return GUI.skin != null ? GUI.skin.label : new GUIStyle();
+        }
+
+        private void Caption(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            string text = L.T(key);
+            if (string.IsNullOrEmpty(text)) return;
+
+            // Use GUILayout.Label — EditorGUILayout.LabelField(string, GUIStyle) NREs when style is null.
+            GUILayout.Label(text, CaptionStyle());
+            GUILayout.Space(2);
         }
 
         private void LoadLogo()
@@ -115,115 +160,165 @@ namespace XVR.Tools
 
         private void DrawHeader()
         {
-            EditorGUILayout.BeginVertical(panelStyle);
-            EditorGUILayout.BeginHorizontal();
-
-            if (logoTexture != null)
-                GUILayout.Label(logoTexture, GUILayout.Width(48), GUILayout.Height(48));
-
-            EditorGUILayout.BeginVertical();
-            GUILayout.Label(L.T("header.title"), headerStyle);
-            GUILayout.Label(L.T("header.subtitle"), subStyle);
-            EditorGUILayout.EndVertical();
-
-            GUILayout.FlexibleSpace();
-            EditorGUILayout.BeginVertical(GUILayout.Width(160));
-            GUILayout.Label(L.T("lang.label"), EditorStyles.miniLabel);
-            int lang = (int)L.Language;
-            int next = EditorGUILayout.Popup(lang, L.LanguageDisplayNames);
-            if (next != lang)
+            EditorGUILayout.BeginVertical(panelStyle ?? EditorStyles.helpBox ?? GUI.skin.box);
+            try
             {
-                L.Language = (VtoolLanguage)next;
-                Repaint();
+                EditorGUILayout.BeginHorizontal();
+                try
+                {
+                    if (logoTexture != null)
+                        GUILayout.Label(logoTexture, GUILayout.Width(48), GUILayout.Height(48));
+
+                    EditorGUILayout.BeginVertical();
+                    try
+                    {
+                        GUILayout.Label(L.T("header.title") ?? "Vtool", headerStyle ?? CaptionStyle());
+                        GUILayout.Label(L.T("header.subtitle") ?? string.Empty, subStyle ?? CaptionStyle());
+                    }
+                    finally
+                    {
+                        EditorGUILayout.EndVertical();
+                    }
+
+                    GUILayout.FlexibleSpace();
+                    EditorGUILayout.BeginVertical(GUILayout.Width(180));
+                    try
+                    {
+                        GUILayout.Label(L.T("lang.label") ?? "Language", CaptionStyle());
+                        int lang = (int)L.Language;
+                        int next = EditorGUILayout.Popup(lang, L.LanguageDisplayNames);
+                        if (next != lang && next >= 0 && next <= 2)
+                            L.Language = (VtoolLanguage)next;
+                    }
+                    finally
+                    {
+                        EditorGUILayout.EndVertical();
+                    }
+                }
+                finally
+                {
+                    EditorGUILayout.EndHorizontal();
+                }
+
+                var line = GUILayoutUtility.GetRect(0, 1, GUILayout.ExpandWidth(true));
+                EditorGUI.DrawRect(line, Accent);
             }
-            EditorGUILayout.EndVertical();
+            finally
+            {
+                EditorGUILayout.EndVertical();
+            }
 
-            EditorGUILayout.EndHorizontal();
-
-            var line = GUILayoutUtility.GetRect(0, 1, GUILayout.ExpandWidth(true));
-            EditorGUI.DrawRect(line, Accent);
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.LabelField(L.T("header.safety"), EditorStyles.centeredGreyMiniLabel);
+            GUILayout.Label(L.T("header.safety") ?? string.Empty, CaptionStyle());
         }
 
         private void DrawSupportFooter()
         {
             GUILayout.Space(6);
             EditorGUILayout.BeginHorizontal();
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button(new GUIContent("☕ " + L.T("support.coffee")), linkStyle))
-                Application.OpenURL(SupportUrl);
-            EditorGUILayout.EndHorizontal();
+            try
+            {
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button(new GUIContent("☕ " + (L.T("support.coffee") ?? "Support")), linkStyle ?? CaptionStyle()))
+                    Application.OpenURL(SupportUrl);
+            }
+            finally
+            {
+                EditorGUILayout.EndHorizontal();
+            }
             GUILayout.Space(4);
         }
 
         private void DrawUpdateBanner()
         {
             if (!VtoolPackageUpdateHandler.HasPendingUpdate) return;
-            EditorGUILayout.HelpBox(L.T("update.detected"), MessageType.Info);
-            if (GUILayout.Button(L.T("btn.apply_update")))
+            EditorGUILayout.HelpBox(L.T("update.detected") ?? "Update detected.", MessageType.Info);
+            if (GUILayout.Button(L.T("btn.apply_update") ?? "Apply Update"))
                 VtoolPackageUpdateHandler.CheckForPackageUpdate(silent: false, force: true);
         }
 
         private void DrawAvatarPicker()
         {
-            EditorGUILayout.BeginVertical(panelStyle);
-            targetAvatar = (GameObject)EditorGUILayout.ObjectField(L.T("field.avatar"), targetAvatar, typeof(GameObject), true);
-
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button(new GUIContent(L.T("btn.use_selected"), L.T("tip.use_selected")), GUILayout.Width(120)))
+            EditorGUILayout.BeginVertical(panelStyle ?? EditorStyles.helpBox ?? GUI.skin.box);
+            try
             {
-                if (Selection.activeGameObject != null)
-                    targetAvatar = Selection.activeGameObject;
+                targetAvatar = (GameObject)EditorGUILayout.ObjectField(
+                    L.T("field.avatar") ?? "Avatar", targetAvatar, typeof(GameObject), true);
+
+                EditorGUILayout.BeginHorizontal();
+                try
+                {
+                    GUILayout.FlexibleSpace();
+                    if (GUILayout.Button(new GUIContent(L.T("btn.use_selected") ?? "Use Selected", L.T("tip.use_selected") ?? string.Empty), GUILayout.Width(120)))
+                    {
+                        if (Selection.activeGameObject != null)
+                            targetAvatar = Selection.activeGameObject;
+                    }
+                    if (GUILayout.Button(new GUIContent(L.T("btn.auto_detect") ?? "Auto-Detect", L.T("tip.auto_detect") ?? string.Empty), GUILayout.Width(120)))
+                        AutoDetectAvatar();
+                }
+                finally
+                {
+                    EditorGUILayout.EndHorizontal();
+                }
             }
-            if (GUILayout.Button(new GUIContent(L.T("btn.auto_detect"), L.T("tip.auto_detect")), GUILayout.Width(120)))
-                AutoDetectAvatar();
-            EditorGUILayout.EndHorizontal();
-            EditorGUILayout.EndVertical();
+            finally
+            {
+                EditorGUILayout.EndVertical();
+            }
         }
 
         private void DrawRollbackBanner()
         {
             if (targetAvatar == null || !VtoolAvatarRollback.HasRollback(targetAvatar)) return;
 
-            EditorGUILayout.BeginVertical(panelStyle);
-            EditorGUILayout.LabelField(L.T("rollback.banner"), EditorStyles.wordWrappedMiniLabel);
-            var prev = GUI.backgroundColor;
-            GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
-            if (GUILayout.Button(new GUIContent(L.T("btn.rollback"), L.T("tip.rollback")), GUILayout.Height(30)))
-                RunRollback();
-            GUI.backgroundColor = prev;
-            Caption("cap.rollback");
-            EditorGUILayout.EndVertical();
+            EditorGUILayout.BeginVertical(panelStyle ?? EditorStyles.helpBox ?? GUI.skin.box);
+            try
+            {
+                GUILayout.Label(L.T("rollback.banner") ?? string.Empty, CaptionStyle());
+                var prev = GUI.backgroundColor;
+                GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
+                if (GUILayout.Button(new GUIContent(L.T("btn.rollback") ?? "Rollback", L.T("tip.rollback") ?? string.Empty), GUILayout.Height(30)))
+                    RunRollback();
+                GUI.backgroundColor = prev;
+                Caption("cap.rollback");
+            }
+            finally
+            {
+                EditorGUILayout.EndVertical();
+            }
         }
 
         private void DrawSection(string title, System.Action body)
         {
-            EditorGUILayout.BeginVertical(panelStyle);
-            GUILayout.Label(title, sectionStyle);
-            body();
-            EditorGUILayout.EndVertical();
+            EditorGUILayout.BeginVertical(panelStyle ?? EditorStyles.helpBox ?? GUI.skin.box);
+            try
+            {
+                GUILayout.Label(title ?? string.Empty, sectionStyle ?? EditorStyles.boldLabel ?? GUI.skin.label);
+                body?.Invoke();
+            }
+            finally
+            {
+                EditorGUILayout.EndVertical();
+            }
         }
 
         private void Stat(string label, string value, GUIStyle style = null)
         {
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label(label, GUILayout.Width(150));
-            GUILayout.Label(value, style ?? EditorStyles.label);
-            EditorGUILayout.EndHorizontal();
-        }
-
-        private void Caption(string key)
-        {
-            EditorGUILayout.LabelField(L.T(key), captionStyle);
-            GUILayout.Space(2);
+            try
+            {
+                GUILayout.Label(label ?? string.Empty, GUILayout.Width(170));
+                GUILayout.Label(value ?? string.Empty, style ?? EditorStyles.label ?? GUI.skin.label);
+            }
+            finally
+            {
+                EditorGUILayout.EndHorizontal();
+            }
         }
 
         private bool ActionButton(string labelKey, string tipKey, string capKey = null, float height = 0f)
         {
-            var content = new GUIContent(L.T(labelKey), L.T(tipKey));
+            var content = new GUIContent(L.T(labelKey) ?? string.Empty, L.T(tipKey) ?? string.Empty);
             bool clicked = height > 0f
                 ? GUILayout.Button(content, GUILayout.Height(height))
                 : GUILayout.Button(content);
@@ -236,18 +331,30 @@ namespace XVR.Tools
 
         private void IssueRow(AvatarIssue issue)
         {
-            GUIStyle icon = issue.Severity == IssueSeverity.Blocker ? errStyle
-                : issue.Severity == IssueSeverity.Warning ? warnStyle : EditorStyles.miniLabel;
+            GUIStyle icon = issue.Severity == IssueSeverity.Blocker ? (errStyle ?? CaptionStyle())
+                : issue.Severity == IssueSeverity.Warning ? (warnStyle ?? CaptionStyle()) : CaptionStyle();
             string mark = issue.Severity == IssueSeverity.Blocker ? "✗" : issue.Severity == IssueSeverity.Warning ? "!" : "·";
 
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Label(mark, icon, GUILayout.Width(14));
-            GUILayout.Label(issue.Message, EditorStyles.wordWrappedLabel);
-            EditorGUILayout.EndHorizontal();
-            if (!string.IsNullOrEmpty(issue.FixHint))
-                EditorGUILayout.LabelField(issue.FixHint, EditorStyles.miniLabel);
-            EditorGUILayout.EndVertical();
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox ?? GUI.skin.box);
+            try
+            {
+                EditorGUILayout.BeginHorizontal();
+                try
+                {
+                    GUILayout.Label(mark, icon, GUILayout.Width(14));
+                    GUILayout.Label(issue.Message ?? string.Empty, EditorStyles.wordWrappedLabel ?? CaptionStyle());
+                }
+                finally
+                {
+                    EditorGUILayout.EndHorizontal();
+                }
+                if (!string.IsNullOrEmpty(issue.FixHint))
+                    GUILayout.Label(issue.FixHint, CaptionStyle());
+            }
+            finally
+            {
+                EditorGUILayout.EndVertical();
+            }
         }
 
         #endregion
@@ -282,7 +389,7 @@ namespace XVR.Tools
 
             if (scan.BlockerCount == 0 && scan.WarningCount == 0)
             {
-                DrawSection(L.T("sec.result"), () => GUILayout.Label(L.T("result.all_ok"), okStyle));
+                DrawSection(L.T("sec.result"), () => GUILayout.Label(L.T("result.all_ok") ?? "OK", okStyle ?? CaptionStyle()));
             }
 
             DrawSection(L.T("sec.performance"), () =>
@@ -321,7 +428,7 @@ namespace XVR.Tools
         {
             DrawSection(L.T("sec.quick"), () =>
             {
-                EditorGUILayout.LabelField(L.T("fix.intro"), EditorStyles.wordWrappedMiniLabel);
+                GUILayout.Label(L.T("fix.intro") ?? string.Empty, CaptionStyle());
                 GUILayout.Space(6);
 
                 if (ActionButton("btn.backup", "tip.backup", "cap.backup", 28f))
@@ -331,7 +438,7 @@ namespace XVR.Tools
                 {
                     var prevRollback = GUI.backgroundColor;
                     GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
-                    if (GUILayout.Button(new GUIContent(L.T("btn.rollback"), L.T("tip.rollback")), GUILayout.Height(28)))
+                    if (GUILayout.Button(new GUIContent(L.T("btn.rollback") ?? "Rollback", L.T("tip.rollback") ?? string.Empty), GUILayout.Height(28)))
                         RunRollback();
                     GUI.backgroundColor = prevRollback;
                     Caption("cap.rollback");
@@ -340,52 +447,59 @@ namespace XVR.Tools
                 GUILayout.Space(4);
                 var prev = GUI.backgroundColor;
                 GUI.backgroundColor = scan.BlockerCount > 0 ? new Color(0.28f, 0.72f, 0.38f) : new Color(0.4f, 0.55f, 0.45f);
-                if (GUILayout.Button(new GUIContent(L.T("btn.fix_all"), L.T("tip.fix_all")), GUILayout.Height(36)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.fix_all") ?? "Fix All", L.T("tip.fix_all") ?? string.Empty), GUILayout.Height(36)))
                     RunFixAll();
                 GUI.backgroundColor = prev;
                 Caption("cap.fix_all");
 
                 GUILayout.Space(6);
-                showIndividualFixes = EditorGUILayout.Foldout(showIndividualFixes, L.T("fold.individual"), true);
+                showIndividualFixes = EditorGUILayout.Foldout(showIndividualFixes, L.T("fold.individual") ?? "Individual fixes", true);
                 if (showIndividualFixes)
                 {
                     EditorGUI.indentLevel++;
-                    if (ActionButton("btn.fix_mats", "tip.fix_mats"))
-                        WithUndo(() => VtoolAvatarFixes.FixMissingMaterials(targetAvatar, allowPlaceholder: false));
-                    if (ActionButton("btn.add_pipeline", "tip.add_pipeline"))
-                        WithUndo(() => VtoolAvatarFixes.EnsurePipelineManager(targetAvatar));
-                    if (ActionButton("btn.fix_bounds", "tip.fix_bounds"))
-                        WithUndo(() => VtoolAvatarFixes.FixMeshBounds(targetAvatar));
-                    if (ActionButton("btn.fix_audio", "tip.fix_audio"))
-                        WithUndo(() => { int p; VtoolAvatarFixes.FixAudioSources(targetAvatar, out p); });
-                    if (ActionButton("btn.view_pos", "tip.view_pos"))
-                        WithUndo(() => VtoolAvatarFixes.AlignViewPosition(targetAvatar, onlyIfUnset: true));
-                    if (ActionButton("btn.lip_sync", "tip.lip_sync"))
-                        WithUndo(() => VtoolAvatarFixes.SetupLipSync(targetAvatar, onlyIfUnset: true));
-
-                    EditorGUILayout.Space(4);
-                    EditorGUILayout.LabelField(L.T("label.optional"), EditorStyles.miniLabel);
-                    if (scan.PhysBoneCount > 256)
+                    try
                     {
+                        if (ActionButton("btn.fix_mats", "tip.fix_mats"))
+                            WithUndo(() => VtoolAvatarFixes.FixMissingMaterials(targetAvatar, allowPlaceholder: false));
+                        if (ActionButton("btn.add_pipeline", "tip.add_pipeline"))
+                            WithUndo(() => VtoolAvatarFixes.EnsurePipelineManager(targetAvatar));
+                        if (ActionButton("btn.fix_bounds", "tip.fix_bounds"))
+                            WithUndo(() => VtoolAvatarFixes.FixMeshBounds(targetAvatar));
+                        if (ActionButton("btn.fix_audio", "tip.fix_audio"))
+                            WithUndo(() => { int p; VtoolAvatarFixes.FixAudioSources(targetAvatar, out p); });
+                        if (ActionButton("btn.view_pos", "tip.view_pos"))
+                            WithUndo(() => VtoolAvatarFixes.AlignViewPosition(targetAvatar, onlyIfUnset: true));
+                        if (ActionButton("btn.lip_sync", "tip.lip_sync"))
+                            WithUndo(() => VtoolAvatarFixes.SetupLipSync(targetAvatar, onlyIfUnset: true));
+
+                        EditorGUILayout.Space(4);
+                        GUILayout.Label(L.T("label.optional") ?? string.Empty, CaptionStyle());
+
+                        // Single button path every frame (Layout/Repaint must match)
+                        string pbLabel = scan.PhysBoneCount > 256
+                            ? (L.TF("btn.reduce_pb_n", scan.PhysBoneCount) ?? "Reduce PhysBones")
+                            : (L.T("btn.reduce_pb") ?? "Reduce PhysBones");
                         var prevPb = GUI.backgroundColor;
-                        GUI.backgroundColor = new Color(0.85f, 0.35f, 0.3f);
-                        if (GUILayout.Button(new GUIContent(L.TF("btn.reduce_pb_n", scan.PhysBoneCount), L.T("tip.reduce_pb"))))
+                        if (scan.PhysBoneCount > 256)
+                            GUI.backgroundColor = new Color(0.85f, 0.35f, 0.3f);
+                        if (GUILayout.Button(new GUIContent(pbLabel, L.T("tip.reduce_pb") ?? string.Empty)))
                             RunReducePhysBones();
                         GUI.backgroundColor = prevPb;
-                    }
-                    else if (GUILayout.Button(new GUIContent(L.T("btn.reduce_pb"), L.T("tip.reduce_pb"))))
-                        RunReducePhysBones();
-                    Caption("cap.reduce_pb");
+                        Caption("cap.reduce_pb");
 
-                    if (ActionButton("btn.remove_missing", "tip.remove_missing"))
-                        RunRemoveMissingScripts();
-                    if (ActionButton("btn.placeholder_mats", "tip.placeholder_mats"))
-                        RunPlaceholderMaterials();
-                    if (ActionButton("btn.disable_others", "tip.disable_others"))
-                        RunDisableOtherAvatars();
-                    if (ActionButton("btn.clear_blueprint", "tip.clear_blueprint"))
-                        RunClearBlueprintId();
-                    EditorGUI.indentLevel--;
+                        if (ActionButton("btn.remove_missing", "tip.remove_missing"))
+                            RunRemoveMissingScripts();
+                        if (ActionButton("btn.placeholder_mats", "tip.placeholder_mats"))
+                            RunPlaceholderMaterials();
+                        if (ActionButton("btn.disable_others", "tip.disable_others"))
+                            RunDisableOtherAvatars();
+                        if (ActionButton("btn.clear_blueprint", "tip.clear_blueprint"))
+                            RunClearBlueprintId();
+                    }
+                    finally
+                    {
+                        EditorGUI.indentLevel--;
+                    }
                 }
             });
         }
@@ -405,7 +519,7 @@ namespace XVR.Tools
 
                 var prev = GUI.backgroundColor;
                 GUI.backgroundColor = Accent;
-                if (GUILayout.Button(new GUIContent(L.TF("btn.reduce_tex", textureCapSize), L.T("tip.reduce_tex")), GUILayout.Height(32)))
+                if (GUILayout.Button(new GUIContent(L.TF("btn.reduce_tex", textureCapSize) ?? "Reduce", L.T("tip.reduce_tex") ?? string.Empty), GUILayout.Height(32)))
                 {
                     if (EditorUtility.DisplayDialog(L.T("dlg.tex.reduce_title"),
                         L.TF("dlg.tex.reduce_body", textureCapSize),
@@ -448,10 +562,10 @@ namespace XVR.Tools
 
             DrawSection(L.T("sec.quest"), () =>
             {
-                EditorGUILayout.LabelField(L.T("quest.intro"), EditorStyles.wordWrappedMiniLabel);
+                GUILayout.Label(L.T("quest.intro") ?? string.Empty, CaptionStyle());
                 Stat(L.T("stat.non_quest"), scan.QuestBadShaders.ToString(), scan.QuestBadShaders > 0 ? warnStyle : okStyle);
 
-                if (GUILayout.Button(new GUIContent(L.T("btn.quest_convert"), L.T("tip.quest_convert")), GUILayout.Height(30)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.quest_convert") ?? "Convert", L.T("tip.quest_convert") ?? string.Empty), GUILayout.Height(30)))
                 {
                     if (EditorUtility.DisplayDialog(L.T("dlg.quest.title"),
                         L.T("dlg.quest.body"),

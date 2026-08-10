@@ -113,7 +113,10 @@ namespace XVR.Tools
             }
             else if (diskVersion == loadedVersion && diskStamp == loadedStamp)
             {
-                EditorUtility.DisplayDialog("Vtool", "Already on the latest installed package.", "OK");
+                EditorUtility.DisplayDialog(
+                    VtoolLocalization.T("update.dialog_title"),
+                    VtoolLocalization.T("update.already_latest"),
+                    VtoolLocalization.T("dlg.ok"));
                 return;
             }
 
@@ -135,10 +138,9 @@ namespace XVR.Tools
             if (!silent)
             {
                 EditorUtility.DisplayDialog(
-                    "Vtool Update",
-                    "A new Vtool package was installed while Unity was open.\n\n" +
-                    "Unity will refresh and reload now so the update takes effect.",
-                    "OK");
+                    VtoolLocalization.T("update.dialog_title"),
+                    VtoolLocalization.T("update.reload_body"),
+                    VtoolLocalization.T("dlg.ok"));
             }
 
             EditorApplication.delayCall += () =>
