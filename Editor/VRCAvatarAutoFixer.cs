@@ -23,6 +23,7 @@ namespace XVR.Tools
 
         // Snapshot on EventType.Layout so Layout/Repaint/Input draw the same control tree.
         private AvatarScanResult layoutScan;
+        private bool layoutScanValid;
         private bool layoutHasAvatar;
         private bool layoutHasRollback;
         private bool layoutHasPendingUpdate;
@@ -56,7 +57,16 @@ namespace XVR.Tools
             layoutShowLogo = logoTexture != null;
             layoutShowIndividualFixes = showIndividualFixes;
             layoutLang = (int)L.Language;
-            layoutScan = layoutHasAvatar ? VtoolAvatarScan.Scan(targetAvatar) : null;
+            if (layoutHasAvatar)
+            {
+                layoutScan = VtoolAvatarScan.Scan(targetAvatar);
+                layoutScanValid = true;
+            }
+            else
+            {
+                layoutScan = default;
+                layoutScanValid = false;
+            }
         }
 
         private void Defer(System.Action action)
@@ -102,7 +112,7 @@ namespace XVR.Tools
                 }, GUILayout.Height(26));
                 GUILayout.Space(8);
 
-                var scan = layoutScan ?? VtoolAvatarScan.Scan(targetAvatar);
+                var scan = layoutScanValid ? layoutScan : VtoolAvatarScan.Scan(targetAvatar);
 
                 switch (tabIndex)
                 {
@@ -416,8 +426,6 @@ namespace XVR.Tools
 
         private void DrawCheckTab(AvatarScanResult scan)
         {
-            if (scan == null) return;
-
             DrawSection(L.T("sec.status"), () =>
             {
                 EditorGUILayout.HelpBox(scan.Summary ?? string.Empty,
@@ -493,8 +501,6 @@ namespace XVR.Tools
 
         private void DrawFixTab(AvatarScanResult scan)
         {
-            if (scan == null) return;
-
             DrawSection(L.T("sec.quick"), () =>
             {
                 GUILayout.Label(L.T("fix.intro") ?? string.Empty, CaptionStyle());
@@ -580,8 +586,6 @@ namespace XVR.Tools
 
         private void DrawTexturesTab(AvatarScanResult scan)
         {
-            if (scan == null) return;
-
             DrawSection(L.T("sec.tex_size"), () =>
             {
                 Stat(L.T("stat.textures"), scan.TextureCount.ToString());
@@ -685,7 +689,7 @@ namespace XVR.Tools
                 }
             }
             catch { /* ignore */ }
-            return "2.2.5";
+            return "2.2.6";
         }
 
         private void CopyErrorCodes(AvatarScanResult scan)
