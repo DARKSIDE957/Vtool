@@ -170,7 +170,7 @@ Test on a copy of your project if you are unsure.
 ## Known issue: head disappearing
 
 > [!IMPORTANT]
-> Some users still report the **avatar head / face disappearing after clicking Fix**. We are **still investigating and hardening** head/face/hair protection (latest work in **v2.2.8+**).
+> Some users still report the **avatar head / face disappearing after clicking Fix**. I am **still investigating and hardening** head/face/hair protection (latest work in **v2.2.8+**).
 >
 > If this happens to you:
 > 1. Click **Rollback Avatar** immediately (or Unity **Ctrl+Z**)
