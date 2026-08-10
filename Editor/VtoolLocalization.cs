@@ -198,6 +198,9 @@ namespace XVR.Tools
 
             // Check tab
             Add("sec.status", "Status", "الحالة", "Estado");
+            Add("fold.check_details", "Details (performance / VRChat / textures)",
+                "التفاصيل (الأداء / VRChat / الأنسجة)",
+                "Detalles (rendimiento / VRChat / texturas)");
             Add("btn.copy_errors", "Copy Error Codes", "نسخ أكواد الأخطاء", "Copiar códigos de error");
             Add("tip.copy_errors", "Copies blocker/warning codes plus scan stats to the clipboard so you can paste them when asking for help.",
                 "ينسخ أكواد الموانع والتحذيرات مع إحصائيات الفحص إلى الحافظة للصقها عند طلب المساعدة.",

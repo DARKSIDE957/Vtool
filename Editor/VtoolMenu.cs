@@ -13,7 +13,7 @@ namespace XVR.Tools
         public static void OpenAutoFixer()
         {
             var w = EditorWindow.GetWindow<VRCAvatarAutoFixer>(WindowTitle);
-            w.minSize = new Vector2(440, 640);
+            w.minSize = new Vector2(340, 380);
             w.Show();
             w.Focus();
         }

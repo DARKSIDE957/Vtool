@@ -15,6 +15,7 @@ namespace XVR.Tools
         private int tabIndex;
         private int textureCapSize = 2048;
         private bool showIndividualFixes;
+        private bool showCheckDetails;
         private Texture2D logoTexture;
 
         private GUIStyle headerStyle, subStyle, sectionStyle, panelStyle, captionStyle;
@@ -29,6 +30,7 @@ namespace XVR.Tools
         private bool layoutHasPendingUpdate;
         private bool layoutShowLogo;
         private bool layoutShowIndividualFixes;
+        private bool layoutShowCheckDetails;
         private int layoutLang;
 
         public static void ShowWindow()
@@ -53,6 +55,7 @@ namespace XVR.Tools
             layoutHasPendingUpdate = VtoolPackageUpdateHandler.HasPendingUpdate;
             layoutShowLogo = logoTexture != null;
             layoutShowIndividualFixes = showIndividualFixes;
+            layoutShowCheckDetails = showCheckDetails;
             layoutLang = (int)L.Language;
             if (layoutHasAvatar)
             {
@@ -85,30 +88,32 @@ namespace XVR.Tools
             if (Event.current.type == EventType.Layout)
                 RefreshLayoutCache();
 
+            // Keep header / tabs visible; only the tab body scrolls (works in a small window).
+            DrawHeader();
+            DrawUpdateBanner();
+            DrawAvatarPicker();
+
+            if (!layoutHasAvatar)
+            {
+                EditorGUILayout.HelpBox(L.T("assign.avatar") ?? string.Empty, MessageType.Info);
+                DrawSupportFooter();
+                return;
+            }
+
+            DrawRollbackBanner();
+
+            GUILayout.Space(4);
+            tabIndex = GUILayout.Toolbar(tabIndex, new[]
+            {
+                L.T("tab.check") ?? "Check",
+                L.T("tab.fix") ?? "Fix",
+                L.T("tab.textures") ?? "Textures"
+            }, GUILayout.Height(24));
+            GUILayout.Space(4);
+
             scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
             try
             {
-                DrawHeader();
-                DrawUpdateBanner();
-                DrawAvatarPicker();
-                DrawRollbackBanner();
-
-                if (!layoutHasAvatar)
-                {
-                    EditorGUILayout.HelpBox(L.T("assign.avatar") ?? string.Empty, MessageType.Info);
-                    DrawSupportFooter();
-                    return;
-                }
-
-                GUILayout.Space(8);
-                tabIndex = GUILayout.Toolbar(tabIndex, new[]
-                {
-                    L.T("tab.check") ?? "Check",
-                    L.T("tab.fix") ?? "Fix",
-                    L.T("tab.textures") ?? "Textures"
-                }, GUILayout.Height(26));
-                GUILayout.Space(8);
-
                 var scan = layoutScanValid ? layoutScan : VtoolAvatarScan.Scan(targetAvatar);
 
                 switch (tabIndex)
@@ -146,11 +151,11 @@ namespace XVR.Tools
                 var wrapMini = EditorStyles.wordWrappedMiniLabel ?? mini;
                 var link = EditorStyles.linkLabel ?? mini;
 
-                headerStyle = new GUIStyle(bold) { fontSize = 17, margin = new RectOffset(0, 0, 2, 0) };
-                subStyle = new GUIStyle(mini) { normal = { textColor = Muted }, margin = new RectOffset(0, 0, 0, 0) };
-                sectionStyle = new GUIStyle(bold) { fontSize = 12, margin = new RectOffset(0, 0, 4, 6) };
-                panelStyle = new GUIStyle(help) { padding = new RectOffset(12, 12, 10, 10), margin = new RectOffset(4, 4, 4, 4) };
-                captionStyle = new GUIStyle(wrapMini) { wordWrap = true, normal = { textColor = Muted } };
+                headerStyle = new GUIStyle(bold) { fontSize = 14, margin = new RectOffset(0, 0, 0, 0) };
+                subStyle = new GUIStyle(mini) { normal = { textColor = Muted }, margin = new RectOffset(0, 0, 0, 0), wordWrap = true };
+                sectionStyle = new GUIStyle(bold) { fontSize = 11, margin = new RectOffset(0, 0, 2, 2) };
+                panelStyle = new GUIStyle(help) { padding = new RectOffset(8, 8, 6, 6), margin = new RectOffset(2, 2, 2, 2) };
+                captionStyle = new GUIStyle(wrapMini) { wordWrap = true, fontSize = 10, normal = { textColor = Muted }, margin = new RectOffset(0, 0, 0, 0) };
                 okStyle = new GUIStyle(label) { normal = { textColor = new Color(0.35f, 0.82f, 0.48f) } };
                 warnStyle = new GUIStyle(label) { normal = { textColor = new Color(1f, 0.68f, 0.2f) } };
                 errStyle = new GUIStyle(label) { normal = { textColor = new Color(0.95f, 0.35f, 0.35f) } };
@@ -178,7 +183,7 @@ namespace XVR.Tools
             // Always emit the same controls (never early-out) so Layout/Repaint stay matched.
             string text = string.IsNullOrEmpty(key) ? string.Empty : (L.T(key) ?? string.Empty);
             GUILayout.Label(text, CaptionStyle());
-            GUILayout.Space(2);
+            GUILayout.Space(1);
         }
 
         private void LoadLogo()
@@ -209,9 +214,9 @@ namespace XVR.Tools
                 {
                     // Fixed logo slot every frame (texture or empty)
                     if (layoutShowLogo && logoTexture != null)
-                        GUILayout.Label(logoTexture, GUILayout.Width(48), GUILayout.Height(48));
+                        GUILayout.Label(logoTexture, GUILayout.Width(32), GUILayout.Height(32));
                     else
-                        GUILayout.Label(GUIContent.none, GUILayout.Width(48), GUILayout.Height(48));
+                        GUILayout.Label(GUIContent.none, GUILayout.Width(32), GUILayout.Height(32));
 
                     EditorGUILayout.BeginVertical();
                     try
@@ -225,7 +230,7 @@ namespace XVR.Tools
                     }
 
                     GUILayout.FlexibleSpace();
-                    EditorGUILayout.BeginVertical(GUILayout.Width(180));
+                    EditorGUILayout.BeginVertical(GUILayout.Width(140));
                     try
                     {
                         GUILayout.Label(L.T("lang.label") ?? "Language", CaptionStyle());
@@ -259,7 +264,7 @@ namespace XVR.Tools
 
         private void DrawSupportFooter()
         {
-            GUILayout.Space(6);
+            GUILayout.Space(4);
             EditorGUILayout.BeginHorizontal();
             try
             {
@@ -271,7 +276,6 @@ namespace XVR.Tools
             {
                 EditorGUILayout.EndHorizontal();
             }
-            GUILayout.Space(4);
         }
 
         private void DrawUpdateBanner()
@@ -293,14 +297,13 @@ namespace XVR.Tools
                 EditorGUILayout.BeginHorizontal();
                 try
                 {
-                    GUILayout.FlexibleSpace();
-                    if (GUILayout.Button(new GUIContent(L.T("btn.use_selected") ?? "Use Selected", L.T("tip.use_selected") ?? string.Empty), GUILayout.Width(120)))
+                    if (GUILayout.Button(new GUIContent(L.T("btn.use_selected") ?? "Use Selected", L.T("tip.use_selected") ?? string.Empty)))
                     {
                         var sel = Selection.activeGameObject;
                         if (sel != null)
                             Defer(() => targetAvatar = sel);
                     }
-                    if (GUILayout.Button(new GUIContent(L.T("btn.auto_detect") ?? "Auto-Detect", L.T("tip.auto_detect") ?? string.Empty), GUILayout.Width(120)))
+                    if (GUILayout.Button(new GUIContent(L.T("btn.auto_detect") ?? "Auto-Detect", L.T("tip.auto_detect") ?? string.Empty)))
                         Defer(AutoDetectAvatar);
                 }
                 finally
@@ -324,15 +327,23 @@ namespace XVR.Tools
             {
                 bool prevEnabled = GUI.enabled;
                 GUI.enabled = layoutHasRollback;
-                GUILayout.Label(layoutHasRollback
-                    ? (L.T("rollback.banner") ?? string.Empty)
-                    : (L.T("rollback.none") ?? "No rollback snapshot yet."), CaptionStyle());
-                var prev = GUI.backgroundColor;
-                if (layoutHasRollback)
-                    GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
-                if (GUILayout.Button(new GUIContent(L.T("btn.rollback") ?? "Rollback", L.T("tip.rollback") ?? string.Empty), GUILayout.Height(30)))
-                    Defer(RunRollback);
-                GUI.backgroundColor = prev;
+                EditorGUILayout.BeginHorizontal();
+                try
+                {
+                    GUILayout.Label(layoutHasRollback
+                        ? (L.T("rollback.banner") ?? string.Empty)
+                        : (L.T("rollback.none") ?? "No rollback snapshot yet."), CaptionStyle());
+                    var prev = GUI.backgroundColor;
+                    if (layoutHasRollback)
+                        GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
+                    if (GUILayout.Button(new GUIContent(L.T("btn.rollback") ?? "Rollback", L.T("tip.rollback") ?? string.Empty), GUILayout.Width(88), GUILayout.Height(22)))
+                        Defer(RunRollback);
+                    GUI.backgroundColor = prev;
+                }
+                finally
+                {
+                    EditorGUILayout.EndHorizontal();
+                }
                 Caption("cap.rollback");
                 GUI.enabled = prevEnabled;
             }
@@ -361,7 +372,7 @@ namespace XVR.Tools
             EditorGUILayout.BeginHorizontal();
             try
             {
-                GUILayout.Label(label ?? string.Empty, GUILayout.Width(170));
+                GUILayout.Label(label ?? string.Empty, GUILayout.MinWidth(100), GUILayout.MaxWidth(160));
                 GUILayout.Label(value ?? string.Empty, style ?? EditorStyles.label ?? GUI.skin.label);
             }
             finally
@@ -395,11 +406,11 @@ namespace XVR.Tools
                 EditorGUILayout.BeginHorizontal();
                 try
                 {
-                    GUILayout.Label(mark, icon, GUILayout.Width(14));
+                    GUILayout.Label(mark, icon, GUILayout.Width(12));
                     if (!string.IsNullOrEmpty(issue.Code))
-                        GUILayout.Label(issue.Code, errStyle ?? CaptionStyle(), GUILayout.Width(140));
+                        GUILayout.Label(issue.Code, errStyle ?? CaptionStyle(), GUILayout.Width(110));
                     else
-                        GUILayout.Label(string.Empty, CaptionStyle(), GUILayout.Width(140));
+                        GUILayout.Label(string.Empty, CaptionStyle(), GUILayout.Width(110));
                     GUILayout.Label(issue.Message ?? string.Empty, EditorStyles.wordWrappedLabel ?? CaptionStyle());
                 }
                 finally
@@ -428,7 +439,7 @@ namespace XVR.Tools
                 EditorGUILayout.HelpBox(scan.Summary ?? string.Empty,
                     scan.BlockerCount > 0 ? MessageType.Error : scan.WarningCount > 0 ? MessageType.Warning : MessageType.Info);
 
-                if (GUILayout.Button(new GUIContent(L.T("btn.copy_errors") ?? "Copy Error Codes", L.T("tip.copy_errors") ?? string.Empty), GUILayout.Height(28)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.copy_errors") ?? "Copy Error Codes", L.T("tip.copy_errors") ?? string.Empty), GUILayout.Height(24)))
                     Defer(() => CopyErrorCodes(scan));
                 Caption("cap.copy_errors");
             });
@@ -464,36 +475,40 @@ namespace XVR.Tools
                     GUILayout.Label(L.T("result.has_issues") ?? "Issues listed above.", CaptionStyle());
             });
 
-            DrawSection(L.T("sec.performance"), () =>
+            showCheckDetails = EditorGUILayout.Foldout(showCheckDetails, L.T("fold.check_details") ?? "Details (performance / VRChat / textures)", true);
+            if (layoutShowCheckDetails)
             {
-                Stat(L.T("stat.polygons"), scan.PolyCount.ToString("N0"), scan.PolyCount > 70000 ? warnStyle : null);
-                Stat(L.T("stat.skinned"), scan.SkinnedMeshCount.ToString(), scan.SkinnedMeshCount > 8 ? warnStyle : null);
-                Stat(L.T("stat.mat_slots"), scan.MaterialSlots.ToString(), scan.MaterialSlots > 16 ? warnStyle : null);
-                Stat(L.T("stat.bones"), scan.BoneCount.ToString());
-                Stat(L.T("stat.height"), $"{scan.AvatarHeightMeters:F2} m");
-                Stat(L.T("stat.physbones"), scan.PhysBoneCount.ToString(),
-                    scan.PhysBoneCount > 256 ? errStyle : scan.PhysBoneCount > 32 ? warnStyle : null);
-                Stat(L.T("stat.particles"), scan.ParticleCount.ToString(), scan.ParticleCount > 16 ? warnStyle : null);
-            });
+                DrawSection(L.T("sec.performance"), () =>
+                {
+                    Stat(L.T("stat.polygons"), scan.PolyCount.ToString("N0"), scan.PolyCount > 70000 ? warnStyle : null);
+                    Stat(L.T("stat.skinned"), scan.SkinnedMeshCount.ToString(), scan.SkinnedMeshCount > 8 ? warnStyle : null);
+                    Stat(L.T("stat.mat_slots"), scan.MaterialSlots.ToString(), scan.MaterialSlots > 16 ? warnStyle : null);
+                    Stat(L.T("stat.bones"), scan.BoneCount.ToString());
+                    Stat(L.T("stat.height"), $"{scan.AvatarHeightMeters:F2} m");
+                    Stat(L.T("stat.physbones"), scan.PhysBoneCount.ToString(),
+                        scan.PhysBoneCount > 256 ? errStyle : scan.PhysBoneCount > 32 ? warnStyle : null);
+                    Stat(L.T("stat.particles"), scan.ParticleCount.ToString(), scan.ParticleCount > 16 ? warnStyle : null);
+                });
 
-            DrawSection(L.T("sec.vrchat"), () =>
-            {
-                Stat(L.T("stat.descriptor"), scan.HasDescriptor ? L.T("stat.ok") : L.T("stat.missing"), scan.HasDescriptor ? okStyle : errStyle);
-                Stat(L.T("stat.pipeline"), scan.HasPipelineManager ? L.T("stat.ok") : L.T("stat.missing"), scan.HasPipelineManager ? okStyle : errStyle);
-                Stat(L.T("stat.humanoid"), scan.HasHumanoidAnimator ? L.T("stat.ok") : L.T("stat.missing"), scan.HasHumanoidAnimator ? okStyle : errStyle);
-                Stat(L.T("stat.chest"), scan.HasChestBone ? L.T("stat.ok") : L.T("stat.missing"), scan.HasChestBone ? okStyle : warnStyle);
-                Stat(L.T("stat.view"), scan.HasViewPosition ? L.T("stat.ok") : L.T("stat.not_set"), scan.HasViewPosition ? okStyle : warnStyle);
-                Stat(L.T("stat.lipsync"), scan.HasLipSync ? L.T("stat.ok") : L.T("stat.not_set"), scan.HasLipSync ? okStyle : warnStyle);
-            });
+                DrawSection(L.T("sec.vrchat"), () =>
+                {
+                    Stat(L.T("stat.descriptor"), scan.HasDescriptor ? L.T("stat.ok") : L.T("stat.missing"), scan.HasDescriptor ? okStyle : errStyle);
+                    Stat(L.T("stat.pipeline"), scan.HasPipelineManager ? L.T("stat.ok") : L.T("stat.missing"), scan.HasPipelineManager ? okStyle : errStyle);
+                    Stat(L.T("stat.humanoid"), scan.HasHumanoidAnimator ? L.T("stat.ok") : L.T("stat.missing"), scan.HasHumanoidAnimator ? okStyle : errStyle);
+                    Stat(L.T("stat.chest"), scan.HasChestBone ? L.T("stat.ok") : L.T("stat.missing"), scan.HasChestBone ? okStyle : warnStyle);
+                    Stat(L.T("stat.view"), scan.HasViewPosition ? L.T("stat.ok") : L.T("stat.not_set"), scan.HasViewPosition ? okStyle : warnStyle);
+                    Stat(L.T("stat.lipsync"), scan.HasLipSync ? L.T("stat.ok") : L.T("stat.not_set"), scan.HasLipSync ? okStyle : warnStyle);
+                });
 
-            DrawSection(L.T("sec.textures"), () =>
-            {
-                Stat(L.T("stat.count"), scan.TextureCount.ToString());
-                Stat(L.T("stat.4k"), scan.Textures4K.ToString(), scan.Textures4K > 0 ? errStyle : okStyle);
-                Stat(L.T("stat.over2k"), scan.TexturesOver2K.ToString(), scan.TexturesOver2K > 0 ? warnStyle : okStyle);
-                Stat(L.T("stat.memory"), $"~{scan.TextureMemoryMB:F0} MB", scan.TextureMemoryMB > 100 ? warnStyle : null);
-                Stat(L.T("stat.nomip"), scan.TexturesNoMipmaps.ToString(), scan.TexturesNoMipmaps > 0 ? warnStyle : okStyle);
-            });
+                DrawSection(L.T("sec.textures"), () =>
+                {
+                    Stat(L.T("stat.count"), scan.TextureCount.ToString());
+                    Stat(L.T("stat.4k"), scan.Textures4K.ToString(), scan.Textures4K > 0 ? errStyle : okStyle);
+                    Stat(L.T("stat.over2k"), scan.TexturesOver2K.ToString(), scan.TexturesOver2K > 0 ? warnStyle : okStyle);
+                    Stat(L.T("stat.memory"), $"~{scan.TextureMemoryMB:F0} MB", scan.TextureMemoryMB > 100 ? warnStyle : null);
+                    Stat(L.T("stat.nomip"), scan.TexturesNoMipmaps.ToString(), scan.TexturesNoMipmaps > 0 ? warnStyle : okStyle);
+                });
+            }
         }
 
         private void DrawFixTab(AvatarScanResult scan)
@@ -503,7 +518,7 @@ namespace XVR.Tools
                 GUILayout.Label(L.T("fix.intro") ?? string.Empty, CaptionStyle());
                 GUILayout.Space(6);
 
-                if (ActionButton("btn.backup", "tip.backup", "cap.backup", 28f))
+                if (ActionButton("btn.backup", "tip.backup", "cap.backup", 24f))
                     Defer(BackupAvatar);
 
                 // Always same rollback controls (enabled only when snapshot exists)
@@ -513,22 +528,22 @@ namespace XVR.Tools
                     var prevRollback = GUI.backgroundColor;
                     if (layoutHasRollback)
                         GUI.backgroundColor = new Color(0.85f, 0.45f, 0.2f);
-                    if (GUILayout.Button(new GUIContent(L.T("btn.rollback") ?? "Rollback", L.T("tip.rollback") ?? string.Empty), GUILayout.Height(28)))
+                    if (GUILayout.Button(new GUIContent(L.T("btn.rollback") ?? "Rollback", L.T("tip.rollback") ?? string.Empty), GUILayout.Height(24)))
                         Defer(RunRollback);
                     GUI.backgroundColor = prevRollback;
                     Caption("cap.rollback");
                     GUI.enabled = prevEnabled;
                 }
 
-                GUILayout.Space(4);
+                GUILayout.Space(2);
                 var prev = GUI.backgroundColor;
                 GUI.backgroundColor = scan.BlockerCount > 0 ? new Color(0.28f, 0.72f, 0.38f) : new Color(0.4f, 0.55f, 0.45f);
-                if (GUILayout.Button(new GUIContent(L.T("btn.fix_all") ?? "Fix All", L.T("tip.fix_all") ?? string.Empty), GUILayout.Height(36)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.fix_all") ?? "Fix All", L.T("tip.fix_all") ?? string.Empty), GUILayout.Height(28)))
                     Defer(RunFixAll);
                 GUI.backgroundColor = prev;
                 Caption("cap.fix_all");
 
-                GUILayout.Space(6);
+                GUILayout.Space(4);
                 showIndividualFixes = EditorGUILayout.Foldout(showIndividualFixes, L.T("fold.individual") ?? "Individual fixes", true);
 
                 // Use Layout-time foldout snapshot so expand/collapse does not desync Layout vs input/Repaint.
@@ -596,7 +611,7 @@ namespace XVR.Tools
 
                 var prev = GUI.backgroundColor;
                 GUI.backgroundColor = Accent;
-                if (GUILayout.Button(new GUIContent(L.TF("btn.reduce_tex", textureCapSize) ?? "Reduce", L.T("tip.reduce_tex") ?? string.Empty), GUILayout.Height(32)))
+                if (GUILayout.Button(new GUIContent(L.TF("btn.reduce_tex", textureCapSize) ?? "Reduce", L.T("tip.reduce_tex") ?? string.Empty), GUILayout.Height(26)))
                 {
                     int cap = textureCapSize;
                     Defer(() =>
@@ -651,7 +666,7 @@ namespace XVR.Tools
                 GUILayout.Label(L.T("quest.intro") ?? string.Empty, CaptionStyle());
                 Stat(L.T("stat.non_quest"), scan.QuestBadShaders.ToString(), scan.QuestBadShaders > 0 ? warnStyle : okStyle);
 
-                if (GUILayout.Button(new GUIContent(L.T("btn.quest_convert") ?? "Convert", L.T("tip.quest_convert") ?? string.Empty), GUILayout.Height(30)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.quest_convert") ?? "Convert", L.T("tip.quest_convert") ?? string.Empty), GUILayout.Height(26)))
                 {
                     Defer(() =>
                     {
@@ -686,7 +701,7 @@ namespace XVR.Tools
                 }
             }
             catch { /* ignore */ }
-            return "2.2.8";
+            return "2.2.9";
         }
 
         private void CopyErrorCodes(AvatarScanResult scan)
