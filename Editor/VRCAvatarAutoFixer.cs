@@ -31,12 +31,9 @@ namespace XVR.Tools
         private bool layoutShowIndividualFixes;
         private int layoutLang;
 
-        [MenuItem("Vtool/Avatar Auto-Fixer Pro")]
         public static void ShowWindow()
         {
-            var w = GetWindow<VRCAvatarAutoFixer>("Vtool");
-            w.minSize = new Vector2(440, 640);
-            w.Show();
+            VtoolMenu.OpenAutoFixer();
         }
 
         private void OnEnable()
@@ -689,7 +686,7 @@ namespace XVR.Tools
                 }
             }
             catch { /* ignore */ }
-            return "2.2.6";
+            return "2.2.7";
         }
 
         private void CopyErrorCodes(AvatarScanResult scan)

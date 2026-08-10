@@ -34,7 +34,7 @@ namespace XVR.Tools
         public static string[] LanguageDisplayNames => new[]
         {
             "English",
-            VtoolArabicImgui.Fix("العربية") + " (Arabic)",
+            "Arabic (العربية)",
             "Español (Spanish)"
         };
 
