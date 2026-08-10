@@ -34,7 +34,7 @@ namespace XVR.Tools
         public static string[] LanguageDisplayNames => new[]
         {
             "English",
-            "العربية (Arabic)",
+            VtoolArabicImgui.Fix("العربية") + " (Arabic)",
             "Español (Spanish)"
         };
 
@@ -51,13 +51,39 @@ namespace XVR.Tools
             if (string.IsNullOrEmpty(local) || local == e.En)
                 return e.En;
 
+            if (Language == VtoolLanguage.Arabic)
+                return VtoolArabicImgui.Fix(local) + " (" + e.En + ")";
+
             return local + " (" + e.En + ")";
         }
 
         public static string TF(string key, params object[] args)
         {
-            try { return string.Format(T(key), args); }
-            catch { return T(key); }
+            EnsureReady();
+            if (!Table.TryGetValue(key, out var e))
+                return key;
+
+            try
+            {
+                if (e.VrchatTermOnly || Language == VtoolLanguage.English)
+                    return string.Format(e.En, args);
+
+                string local = Language == VtoolLanguage.Arabic ? e.Ar : e.Es;
+                if (string.IsNullOrEmpty(local) || local == e.En)
+                    return string.Format(e.En, args);
+
+                string formattedLocal = string.Format(local, args);
+                string formattedEn = string.Format(e.En, args);
+
+                if (Language == VtoolLanguage.Arabic)
+                    return VtoolArabicImgui.Fix(formattedLocal) + " (" + formattedEn + ")";
+
+                return formattedLocal + " (" + formattedEn + ")";
+            }
+            catch
+            {
+                return T(key);
+            }
         }
 
         public static string Raw(string key)
@@ -67,9 +93,12 @@ namespace XVR.Tools
                 return key;
             switch (Language)
             {
-                case VtoolLanguage.Arabic: return string.IsNullOrEmpty(e.Ar) ? e.En : e.Ar;
-                case VtoolLanguage.Spanish: return string.IsNullOrEmpty(e.Es) ? e.En : e.Es;
-                default: return e.En;
+                case VtoolLanguage.Arabic:
+                    return VtoolArabicImgui.Fix(string.IsNullOrEmpty(e.Ar) ? e.En : e.Ar);
+                case VtoolLanguage.Spanish:
+                    return string.IsNullOrEmpty(e.Es) ? e.En : e.Es;
+                default:
+                    return e.En;
             }
         }
 
