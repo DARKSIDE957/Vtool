@@ -63,14 +63,6 @@ namespace XVR.Tools
 
         #region Upload fixes
 
-        public static int RemoveMissingScripts(GameObject avatar)
-        {
-            int n = 0;
-            foreach (var go in avatar.GetComponentsInChildren<Transform>(true).Select(t => t.gameObject))
-                if (go != null) n += GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
-            return n;
-        }
-
         public static int FixMissingMaterials(GameObject avatar, bool allowPlaceholder = false)
         {
             int fixedSlots = 0;
@@ -276,7 +268,7 @@ namespace XVR.Tools
             return true;
         }
 
-        // Removes excess VRCPhysBone scripts only — never GameObjects, meshes, or bones.
+        // Removes excess VRCPhysBone scripts only — never GameObjects, meshes, bones, or anything under the head.
         public static int ReducePhysBoneComponents(GameObject avatar, int limit = 256)
         {
             if (avatar == null || limit < 0) return 0;
@@ -284,6 +276,7 @@ namespace XVR.Tools
             var type = GetTypeSafe("VRC.SDK3.Dynamics.PhysBone.Components.VRCPhysBone");
             if (type == null) return 0;
 
+            var headRoots = CollectHeadProtectionRoots(avatar);
             var components = avatar.GetComponentsInChildren(type, true)
                 .Cast<Component>()
                 .Where(c => c != null)
@@ -292,40 +285,137 @@ namespace XVR.Tools
             int excess = components.Count - limit;
             if (excess <= 0) return 0;
 
-            var humanoidBones = CollectHumanoidBones(avatar);
-            var ordered = components
-                .OrderByDescending(c => PhysBoneRemovalPriority(c, humanoidBones))
+            // Never remove PhysBones on/under the head. Prefer inactive / deep accessory bones elsewhere.
+            var removable = components
+                .Where(c => !IsUnderHeadProtection(c.transform, avatar, headRoots))
+                .OrderByDescending(c => PhysBoneRemovalPriority(c))
                 .ThenBy(c => HierarchyPath(c.transform), System.StringComparer.Ordinal)
                 .ToList();
 
             int removed = 0;
-            for (int i = 0; i < excess && i < ordered.Count; i++)
+            for (int i = 0; i < excess && i < removable.Count; i++)
             {
-                var c = ordered[i];
+                var c = removable[i];
                 if (c == null) continue;
-                Undo.DestroyObjectImmediate(c);
+                if (!TryDestroyComponent(c, avatar, headRoots)) continue;
                 removed++;
             }
 
             return removed;
         }
 
-        private static HashSet<Transform> CollectHumanoidBones(GameObject avatar)
+        public static int RemoveMissingScripts(GameObject avatar)
         {
-            var set = new HashSet<Transform>();
-            var anim = avatar != null ? avatar.GetComponent<Animator>() : null;
-            if (anim == null || !anim.isHuman) return set;
-
-            foreach (HumanBodyBones bone in System.Enum.GetValues(typeof(HumanBodyBones)))
+            if (avatar == null) return 0;
+            var headRoots = CollectHeadProtectionRoots(avatar);
+            int n = 0;
+            foreach (var go in avatar.GetComponentsInChildren<Transform>(true).Select(t => t.gameObject))
             {
-                if (bone == HumanBodyBones.LastBone) continue;
-                var t = anim.GetBoneTransform(bone);
-                if (t != null) set.Add(t);
+                if (go == null) continue;
+                if (IsUnderHeadProtection(go.transform, avatar, headRoots)) continue;
+                n += GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
             }
-            return set;
+            return n;
         }
 
-        private static int PhysBoneRemovalPriority(Component c, HashSet<Transform> humanoidBones)
+        // True if this transform is the head region (head/face/hair/eyes) or under it.
+        public static bool IsUnderHeadProtection(Transform t, GameObject avatar)
+        {
+            return IsUnderHeadProtection(t, avatar, CollectHeadProtectionRoots(avatar));
+        }
+
+        private static bool IsUnderHeadProtection(Transform t, GameObject avatar, HashSet<Transform> headRoots)
+        {
+            if (t == null || avatar == null) return false;
+
+            if (headRoots != null)
+            {
+                foreach (var root in headRoots)
+                {
+                    if (root == null) continue;
+                    if (t == root || t.IsChildOf(root)) return true;
+                }
+            }
+
+            // Name fallback along the path to the avatar root
+            for (var cur = t; cur != null; cur = cur.parent)
+            {
+                if (IsHeadRelatedName(cur.name)) return true;
+                if (cur == avatar.transform) break;
+            }
+            return false;
+        }
+
+        private static HashSet<Transform> CollectHeadProtectionRoots(GameObject avatar)
+        {
+            var roots = new HashSet<Transform>();
+            if (avatar == null) return roots;
+
+            var anim = avatar.GetComponent<Animator>();
+            if (anim != null && anim.isHuman)
+            {
+                AddBone(roots, anim, HumanBodyBones.Head);
+                AddBone(roots, anim, HumanBodyBones.Neck);
+                AddBone(roots, anim, HumanBodyBones.Jaw);
+                AddBone(roots, anim, HumanBodyBones.LeftEye);
+                AddBone(roots, anim, HumanBodyBones.RightEye);
+            }
+
+            // Named head/face/hair objects anywhere under the avatar (common on non-perfect humanoid setups)
+            foreach (var tr in avatar.GetComponentsInChildren<Transform>(true))
+            {
+                if (tr == null) continue;
+                if (IsHeadRelatedName(tr.name))
+                    roots.Add(tr);
+            }
+
+            return roots;
+        }
+
+        private static void AddBone(HashSet<Transform> set, Animator anim, HumanBodyBones bone)
+        {
+            var t = anim.GetBoneTransform(bone);
+            if (t != null) set.Add(t);
+        }
+
+        private static bool IsHeadRelatedName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            string n = name.ToLowerInvariant();
+            // Match common avatar head/face/hair naming; avoid broad words like "body".
+            return ContainsToken(n, "head") || ContainsToken(n, "face") || ContainsToken(n, "hair") ||
+                   ContainsToken(n, "scalp") || ContainsToken(n, "skull") || ContainsToken(n, "neck") ||
+                   ContainsToken(n, "jaw") || ContainsToken(n, "eye") || ContainsToken(n, "lash") ||
+                   ContainsToken(n, "brow") || ContainsToken(n, "mouth") || ContainsToken(n, "teeth") ||
+                   ContainsToken(n, "tooth") || ContainsToken(n, "tongue") || ContainsToken(n, "ear") ||
+                   ContainsToken(n, "viseme");
+        }
+
+        private static bool ContainsToken(string name, string token)
+        {
+            int i = name.IndexOf(token, System.StringComparison.Ordinal);
+            if (i < 0) return false;
+            // Avoid matching unrelated words when possible (e.g. "hearing") — still allow Head_001, Hair.002
+            bool startOk = i == 0 || !char.IsLetterOrDigit(name[i - 1]);
+            int end = i + token.Length;
+            bool endOk = end >= name.Length || !char.IsLetterOrDigit(name[end]);
+            // Avatars often use Head_Geo / HairBand without separators — also allow substring for key tokens
+            if (token == "head" || token == "hair" || token == "face" || token == "eye")
+                return true;
+            return startOk && endOk;
+        }
+
+        // Never destroys GameObjects — only components, and never under the head.
+        private static bool TryDestroyComponent(Component c, GameObject avatar, HashSet<Transform> headRoots)
+        {
+            if (c == null) return false;
+            if (c is Transform) return false;
+            if (IsUnderHeadProtection(c.transform, avatar, headRoots)) return false;
+            Undo.DestroyObjectImmediate(c);
+            return true;
+        }
+
+        private static int PhysBoneRemovalPriority(Component c)
         {
             int score = 0;
             if (!c.gameObject.activeInHierarchy) score += 10000;
@@ -334,11 +424,6 @@ namespace XVR.Tools
             int depth = 0;
             for (var t = c.transform; t != null; t = t.parent) depth++;
             score += depth;
-
-            // Keep PhysBones on the humanoid skeleton when possible
-            if (humanoidBones != null && humanoidBones.Contains(c.transform))
-                score -= 5000;
-
             return score;
         }
 

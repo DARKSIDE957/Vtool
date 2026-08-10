@@ -12,3 +12,5 @@ UserSettings/
 *.sln
 .netlify/
 dist/
+*.zip
+com.vtool.autofixer-*.zip

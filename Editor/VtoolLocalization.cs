@@ -128,9 +128,9 @@ namespace XVR.Tools
             Add("tab.textures", "Textures", "الأنسجة", "Texturas");
             Add("header.title", "Pre-Upload Fixer", "مصلح ما قبل الرفع", "Corrector pre-subida");
             Add("header.subtitle", "VRChat avatar checks & safe fixes", "فحوصات وإصلاحات آمنة لأفاتار VRChat", "Comprobaciones y reparaciones seguras de avatares VRChat");
-            Add("header.safety", "Fix All never deletes meshes, objects, or materials. Rollback saves before fixes.",
-                "الإصلاح الشامل لا يحذف الشبكات أو الكائنات أو المواد. يتم حفظ التراجع قبل الإصلاحات.",
-                "Reparar todo nunca elimina mallas, objetos ni materiales. El rollback se guarda antes de reparar.");
+            Add("header.safety", "Fix All never deletes meshes, objects, or materials. Nothing on the head is removed. Rollback saves before fixes.",
+                "الإصلاح الشامل لا يحذف الشبكات أو الكائنات أو المواد. لا يُزال شيء من الرأس. يتم حفظ التراجع قبل الإصلاحات.",
+                "Reparar todo nunca elimina mallas, objetos ni materiales. Nada de la cabeza se elimina. El rollback se guarda antes de reparar.");
             Add("lang.label", "Language", "اللغة", "Idioma");
             Add("support.coffee", "Support on Buy Me a Coffee", "ادعم عبر Buy Me a Coffee", "Apoyar en Buy Me a Coffee");
 
@@ -205,9 +205,9 @@ namespace XVR.Tools
 
             // Fix tab
             Add("sec.quick", "Quick actions", "إجراءات سريعة", "Acciones rápidas");
-            Add("fix.intro", "Fix All only adds or adjusts settings. It does not remove GameObjects, meshes, or material slots.",
-                "الإصلاح الشامل يضيف أو يعدّل الإعدادات فقط. لا يحذف GameObjects أو الشبكات أو خانات المواد.",
-                "Reparar todo solo añade o ajusta ajustes. No elimina GameObjects, mallas ni ranuras de material.");
+            Add("fix.intro", "Fix All only adds or adjusts settings. It does not remove GameObjects, meshes, material slots, or anything on the head.",
+                "الإصلاح الشامل يضيف أو يعدّل الإعدادات فقط. لا يحذف GameObjects أو الشبكات أو خانات المواد أو أي شيء على الرأس.",
+                "Reparar todo solo añade o ajusta ajustes. No elimina GameObjects, mallas, ranuras de material ni nada en la cabeza.");
             Add("btn.backup", "Backup Avatar", "نسخ احتياطي للأفاتار", "Copia de seguridad del avatar");
             Add("tip.backup", "Creates a hidden duplicate in the scene you can keep as a manual backup.",
                 "ينشئ نسخة مخفية في المشهد كنسخة احتياطية يدوية.",
@@ -219,9 +219,9 @@ namespace XVR.Tools
             Add("tip.fix_all", "Applies conservative fixes only. Never deletes meshes, objects, or material slots.",
                 "يطبق إصلاحات محافظة فقط. لا يحذف الشبكات أو الكائنات أو خانات المواد أبداً.",
                 "Aplica solo reparaciones conservadoras. Nunca elimina mallas, objetos ni ranuras de material.");
-            Add("cap.fix_all", "Adds/adjusts settings only. Does not remove meshes, objects, or material slots.",
-                "يضيف/يعدّل الإعدادات فقط. لا يزيل الشبكات أو الكائنات أو خانات المواد.",
-                "Solo añade/ajusta ajustes. No quita mallas, objetos ni ranuras de material.");
+            Add("cap.fix_all", "Adds/adjusts settings only. Does not remove meshes, objects, material slots, or head content.",
+                "يضيف/يعدّل الإعدادات فقط. لا يزيل الشبكات أو الكائنات أو خانات المواد أو محتوى الرأس.",
+                "Solo añade/ajusta ajustes. No quita mallas, objetos, ranuras de material ni contenido de la cabeza.");
             Add("fold.individual", "Individual fixes", "إصلاحات فردية", "Reparaciones individuales");
             Add("label.optional", "Optional / changes more", "اختياري / يغيّر أكثر", "Opcional / cambia más");
 
@@ -262,19 +262,19 @@ namespace XVR.Tools
             Add("btn.reduce_pb_n", "Reduce PhysBones to 256 ({0} → 256)",
                 "تقليل PhysBones إلى 256 ({0} → 256)",
                 "Reducir PhysBones a 256 ({0} → 256)");
-            Add("tip.reduce_pb", "Removes excess VRCPhysBone scripts only. Never deletes GameObjects, bones, meshes, or the face.",
-                "يزيل سكربتات VRCPhysBone الزائدة فقط. لا يحذف GameObjects أو العظام أو الشبكات أو الوجه.",
-                "Quita solo scripts VRCPhysBone de más. Nunca elimina GameObjects, huesos, mallas ni la cara.");
-            Add("cap.reduce_pb", "Removes excess PhysBone scripts only. Keeps bones, meshes, and face.",
-                "يزيل سكربتات PhysBone الزائدة فقط. يبقي العظام والشبكات والوجه.",
-                "Quita solo scripts PhysBone de más. Conserva huesos, mallas y cara.");
+            Add("tip.reduce_pb", "Removes excess VRCPhysBone scripts only. Never deletes GameObjects, bones, meshes, or anything on the head/face/hair.",
+                "يزيل سكربتات VRCPhysBone الزائدة فقط. لا يحذف GameObjects أو العظام أو الشبكات أو أي شيء على الرأس/الوجه/الشعر.",
+                "Quita solo scripts VRCPhysBone de más. Nunca elimina GameObjects, huesos, mallas ni nada en cabeza/cara/pelo.");
+            Add("cap.reduce_pb", "Removes excess PhysBone scripts only. Head, face, and hair are never touched.",
+                "يزيل سكربتات PhysBone الزائدة فقط. الرأس والوجه والشعر لا تُمس أبداً.",
+                "Quita solo scripts PhysBone de más. Cabeza, cara y pelo nunca se tocan.");
 
             Add("btn.remove_missing", "Remove missing script slots",
                 "إزالة خانات السكربت المفقودة",
                 "Quitar ranuras de scripts faltantes");
-            Add("tip.remove_missing", "Removes broken empty script slots only. Does not delete meshes or child objects.",
-                "يزيل خانات السكربت الفارغة المعطلة فقط. لا يحذف الشبكات أو الكائنات الفرعية.",
-                "Quita solo ranuras de scripts rotas. No elimina mallas ni objetos hijos.");
+            Add("tip.remove_missing", "Removes broken empty script slots only (never on the head). Does not delete meshes or child objects.",
+                "يزيل خانات السكربت الفارغة المعطلة فقط (أبداً على الرأس). لا يحذف الشبكات أو الكائنات الفرعية.",
+                "Quita solo ranuras de scripts rotas (nunca en la cabeza). No elimina mallas ni objetos hijos.");
             Add("btn.placeholder_mats", "Fix materials with placeholder (last resort)",
                 "إصلاح المواد بعنصر نائب (حل أخير)",
                 "Reparar materiales con marcador (último recurso)");
@@ -361,17 +361,20 @@ namespace XVR.Tools
                 "هذا الأفاتار لديه {0} مكوّن PhysBone، وهو ضمن حد 256.",
                 "Este avatar tiene {0} componente(s) PhysBone, dentro del límite de 256.");
             Add("dlg.pb.reduce_title", "Reduce PhysBones", "تقليل PhysBones", "Reducir PhysBones");
-            Add("dlg.pb.reduce_body", "VRChat blocks upload above 256 PhysBone components.\n\nCurrent: {0}\nWill remove: {1} PhysBone script(s)\nWill keep: 256\n\nSAFETY:\n• Does NOT delete GameObjects, bones, meshes, or the face\n• Only removes excess VRCPhysBone components (scripts)\n• Prefers inactive / deeper accessory bones first\n• A rollback copy is saved first\n\nContinue?",
-                "VRChat يمنع الرفع فوق 256 مكوّن PhysBone.\n\nالحالي: {0}\nسيُزال: {1} سكربت PhysBone\nسيُبقى: 256\n\nالأمان:\n• لا يحذف GameObjects أو العظام أو الشبكات أو الوجه\n• يزيل فقط مكوّنات VRCPhysBone الزائدة (سكربتات)\n• يفضّل العظام غير النشطة / الأعمق أولاً\n• تُحفظ نسخة تراجع أولاً\n\nمتابعة؟",
-                "VRChat bloquea la subida por encima de 256 componentes PhysBone.\n\nActual: {0}\nSe quitarán: {1} script(s) PhysBone\nSe conservarán: 256\n\nSEGURIDAD:\n• NO elimina GameObjects, huesos, mallas ni la cara\n• Solo quita componentes VRCPhysBone de más (scripts)\n• Prefiere huesos inactivos / más profundos primero\n• Se guarda un rollback primero\n\n¿Continuar?");
-            Add("dlg.pb.done", "Removed {0} PhysBone component(s).\nBones and meshes are unchanged.\nUse Rollback Avatar if you need to undo.",
-                "أُزيل {0} مكوّن PhysBone.\nالعظام والشبكات لم تتغير.\nاستخدم تراجع الأفاتار إن أردت التراجع.",
-                "Se quitaron {0} componente(s) PhysBone.\nHuesos y mallas sin cambios.\nUsa Revertir avatar si necesitas deshacer.");
+            Add("dlg.pb.reduce_body", "VRChat blocks upload above 256 PhysBone components.\n\nCurrent: {0}\nWill remove: up to {1} PhysBone script(s)\nWill keep: at least head/face/hair PhysBones\n\nSAFETY:\n• Does NOT delete GameObjects, bones, meshes, or the head\n• Never removes anything under Head / Face / Hair\n• Only removes excess VRCPhysBone components elsewhere\n• A rollback copy is saved first\n\nContinue?",
+                "VRChat يمنع الرفع فوق 256 مكوّن PhysBone.\n\nالحالي: {0}\nسيُزال: حتى {1} سكربت PhysBone\nسيُبقى: على الأقل PhysBones الرأس/الوجه/الشعر\n\nالأمان:\n• لا يحذف GameObjects أو العظام أو الشبكات أو الرأس\n• لا يزيل أي شيء تحت Head / Face / Hair\n• يزيل فقط مكوّنات VRCPhysBone الزائدة في أماكن أخرى\n• تُحفظ نسخة تراجع أولاً\n\nمتابعة؟",
+                "VRChat bloquea la subida por encima de 256 componentes PhysBone.\n\nActual: {0}\nSe quitarán: hasta {1} script(s) PhysBone\nSe conservarán: al menos PhysBones de cabeza/cara/pelo\n\nSEGURIDAD:\n• NO elimina GameObjects, huesos, mallas ni la cabeza\n• Nunca quita nada bajo Head / Face / Hair\n• Solo quita componentes VRCPhysBone de más en otros sitios\n• Se guarda un rollback primero\n\n¿Continuar?");
+            Add("dlg.pb.done", "Removed {0} PhysBone component(s).\nBones, meshes, and head are unchanged.\nUse Rollback Avatar if you need to undo.",
+                "أُزيل {0} مكوّن PhysBone.\nالعظام والشبكات والرأس لم تتغير.\nاستخدم تراجع الأفاتار إن أردت التراجع.",
+                "Se quitaron {0} componente(s) PhysBone.\nHuesos, mallas y cabeza sin cambios.\nUsa Revertir avatar si necesitas deshacer.");
+            Add("dlg.pb.head_kept", "Still {0} PhysBones because head/face/hair PhysBones are protected and were not removed. Reduce body/clothing PhysBones manually if needed.",
+                "ما زال هناك {0} PhysBones لأن PhysBones الرأس/الوجه/الشعر محمية ولم تُزل. قلّل PhysBones الجسم/الملابس يدوياً إن لزم.",
+                "Quedan {0} PhysBones porque los de cabeza/cara/pelo están protegidos y no se quitaron. Reduce PhysBones del cuerpo/ropa a mano si hace falta.");
 
             Add("dlg.missing.title", "Remove Missing Scripts", "إزالة السكربتات المفقودة", "Quitar scripts faltantes");
-            Add("dlg.missing.body", "This removes broken empty script slots from GameObjects.\n\nIt does NOT delete meshes or child objects.\nOnly use if you know those scripts are gone for good.\n\nContinue?",
-                "يزيل خانات السكربت الفارغة المعطلة من الكائنات.\n\nلا يحذف الشبكات أو الكائنات الفرعية.\nاستخدمه فقط إن كنت متأكداً أن السكربتات ذهبت نهائياً.\n\nمتابعة؟",
-                "Quita ranuras de scripts rotas de los GameObjects.\n\nNO elimina mallas ni objetos hijos.\nÚsalo solo si esos scripts ya no existen.\n\n¿Continuar?");
+            Add("dlg.missing.body", "This removes broken empty script slots from GameObjects.\n\nIt does NOT delete meshes or child objects.\nIt never touches the head, face, or hair.\nOnly use if you know those scripts are gone for good.\n\nContinue?",
+                "يزيل خانات السكربت الفارغة المعطلة من الكائنات.\n\nلا يحذف الشبكات أو الكائنات الفرعية.\nلا يمس الرأس أو الوجه أو الشعر أبداً.\nاستخدمه فقط إن كنت متأكداً أن السكربتات ذهبت نهائياً.\n\nمتابعة؟",
+                "Quita ranuras de scripts rotas de los GameObjects.\n\nNO elimina mallas ni objetos hijos.\nNunca toca cabeza, cara ni pelo.\nÚsalo solo si esos scripts ya no existen.\n\n¿Continuar?");
             Add("dlg.missing.done", "Removed {0} missing script slot(s).",
                 "أُزيلت {0} خانة سكربت مفقودة.",
                 "Se quitaron {0} ranura(s) de scripts faltantes.");
@@ -485,9 +488,9 @@ namespace XVR.Tools
             Add("issue.physbone_limit", "Phys Bone Components: {0} — exceeds VRChat limit (256)",
                 "مكوّنات Phys Bone: {0} — تتجاوز حد VRChat (256)",
                 "Componentes Phys Bone: {0} — supera el límite de VRChat (256)");
-            Add("hint.physbone_limit", "Use Individual fixes → Reduce PhysBones to 256 (removes PhysBone scripts only, never GameObjects/meshes)",
-                "استخدم الإصلاحات الفردية → تقليل PhysBones إلى 256 (يزيل سكربتات PhysBone فقط، دون GameObjects/شبكات)",
-                "Usa reparaciones individuales → Reducir PhysBones a 256 (solo scripts PhysBone, nunca GameObjects/mallas)");
+            Add("hint.physbone_limit", "Use Individual fixes → Reduce PhysBones to 256 (scripts only; head/face/hair never touched)",
+                "استخدم الإصلاحات الفردية → تقليل PhysBones إلى 256 (سكربتات فقط؛ الرأس/الوجه/الشعر لا تُمس)",
+                "Usa reparaciones individuales → Reducir PhysBones a 256 (solo scripts; cabeza/cara/pelo intactos)");
 
             // Scan warnings
             Add("issue.no_chest", "Humanoid rig missing Chest bone mapping",

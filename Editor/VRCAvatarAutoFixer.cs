@@ -510,7 +510,11 @@ namespace XVR.Tools
             WithUndo(() =>
             {
                 int n = VtoolAvatarFixes.ReducePhysBoneComponents(targetAvatar, 256);
-                EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.pb.done", n), L.T("dlg.ok"));
+                int after = VtoolAvatarScan.Scan(targetAvatar).PhysBoneCount;
+                string msg = L.TF("dlg.pb.done", n);
+                if (after > 256)
+                    msg += "\n\n" + L.TF("dlg.pb.head_kept", after);
+                EditorUtility.DisplayDialog(L.T("dlg.done"), msg, L.T("dlg.ok"));
             });
         }
 

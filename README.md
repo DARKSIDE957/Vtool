@@ -137,7 +137,7 @@ https://raw.githubusercontent.com/DARKSIDE957/Vtool/main/index.json
 <details>
 <summary><b>What Fix All changes</b></summary>
 
-Fix All is conservative. It does **not** delete meshes, GameObjects, or material slots.
+Fix All is conservative. It does **not** delete meshes, GameObjects, or material slots. It also **never removes anything on the head, face, or hair**.
 
 - Fills null material slots using a nearby material on the same renderer
 - Adds `PipelineManager` if missing
@@ -146,7 +146,7 @@ Fix All is conservative. It does **not** delete meshes, GameObjects, or material
 - Sets view position **only if empty**
 - Sets lip sync **only if empty**
 
-Missing scripts, excess PhysBones (scripts only — never GameObjects/meshes), mipmaps, scene avatars, and placeholder materials are under **Individual fixes** with a confirmation dialog.
+Missing scripts and excess PhysBones (scripts only — never GameObjects/meshes, and never on head/face/hair), mipmaps, scene avatars, and placeholder materials are under **Individual fixes** with a confirmation dialog.
 
 Pink shaders still need manual reassignment.
 
@@ -158,6 +158,8 @@ Pink shaders still need manual reassignment.
 
 > [!WARNING]
 > Vtool saves a **rollback copy** before fixes. If something looks wrong, click **Rollback Avatar** in the Fix tab.
+
+Vtool will **not** delete GameObjects, meshes, or the head/face/hair region. PhysBone reduction and missing-script cleanup skip that area on purpose.
 
 You can also use **Backup Avatar** for a visible copy in the scene, or Unity **Ctrl+Z** for the last edit.
 
