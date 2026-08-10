@@ -175,7 +175,7 @@ Test on a copy of your project if you are unsure.
 ## Known issue: head disappearing
 
 > [!IMPORTANT]
-> Some users still report the **avatar head / face disappearing after clicking Fix**. I am **still investigating and hardening** head/face/hair protection (latest work in **v2.2.8+**).
+> Some users still report the **avatar head / face disappearing after clicking Fix** (reported on bases like **Manuka** / **Powari**, whose head mesh is often named `*_atama`). I am **still investigating and hardening** head/face/hair protection (latest work in **v2.3.0+**).
 >
 > **It is okay to use the tool.** Prefer **Individual fixes** for only what you need. **Do not always use Fix All / Auto Fix.**
 >

@@ -1,7 +1,7 @@
 {
   "name": "com.vtool.autofixer",
   "displayName": "Vtool Avatar Auto-Fixer Pro",
-  "version": "2.2.9",
+  "version": "2.3.0",
   "description": "Pre-upload VRChat avatar fixer - diagnoses and fixes common upload errors, textures, bilingual UI; never removes head/face/hair content.",
   "unity": "2022.3",
   "author": {

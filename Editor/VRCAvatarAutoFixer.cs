@@ -701,7 +701,7 @@ namespace XVR.Tools
                 }
             }
             catch { /* ignore */ }
-            return "2.2.9";
+            return "2.3.0";
         }
 
         private void CopyErrorCodes(AvatarScanResult scan)

@@ -176,13 +176,23 @@ namespace XVR.Tools
 
         public static int FixMeshBounds(GameObject avatar)
         {
+            // Writing mesh.bounds into localBounds can frustum-cull heads on bases like Manuka
+            // (MANUKA_atama) when the mesh is not under the Head bone in the expected space.
+            // Never touch head/face/hair SMRs — and never replace bounds on face blendshape meshes.
+            var headRoots = CollectHeadProtectionRoots(avatar);
             var smrs = avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             Undo.RecordObjects(smrs, "Fix Bounds");
             int n = 0;
             foreach (var smr in smrs)
             {
                 if (smr == null || smr.sharedMesh == null) continue;
-                var b = smr.sharedMesh.bounds;
+                if (IsUnderHeadProtection(smr.transform, avatar, headRoots)) continue;
+                if (LooksLikeFaceMesh(smr)) continue;
+
+                // Expand the existing skinned localBounds — do not overwrite with mesh.bounds.
+                var b = smr.localBounds;
+                if (b.size.sqrMagnitude < 0.0001f)
+                    b = smr.sharedMesh.bounds;
                 b.Expand(Mathf.Max(b.size.magnitude * 0.15f, 0.1f));
                 smr.localBounds = b;
                 n++;
@@ -467,6 +477,13 @@ namespace XVR.Tools
         {
             if (string.IsNullOrEmpty(name)) return false;
             string n = name.ToLowerInvariant();
+
+            // Japanese kana/kanji common on Booth bases (Manuka uses MANUKA_atama = head)
+            if (n.Contains("頭") || n.Contains("顔") || n.Contains("髪") || n.Contains("目") ||
+                n.Contains("眉") || n.Contains("口") || n.Contains("耳") || n.Contains("首") ||
+                n.Contains("瞳"))
+                return true;
+
             return ContainsToken(n, "head") || ContainsToken(n, "face") || ContainsToken(n, "hair") ||
                    ContainsToken(n, "scalp") || ContainsToken(n, "skull") || ContainsToken(n, "neck") ||
                    ContainsToken(n, "jaw") || ContainsToken(n, "eye") || ContainsToken(n, "lash") ||
@@ -477,7 +494,12 @@ namespace XVR.Tools
                    ContainsToken(n, "lipstick") || ContainsToken(n, "nose") || ContainsToken(n, "cheek") ||
                    ContainsToken(n, "chin") || ContainsToken(n, "forehead") || ContainsToken(n, "cranium") ||
                    ContainsToken(n, "horn") || ContainsToken(n, "antler") || ContainsToken(n, "pupil") ||
-                   ContainsToken(n, "iris") || ContainsToken(n, "sclera");
+                   ContainsToken(n, "iris") || ContainsToken(n, "sclera") ||
+                   // Romaji used by Manuka / Powari / many JP bases
+                   ContainsToken(n, "atama") || ContainsToken(n, "kao") || ContainsToken(n, "kami") ||
+                   ContainsToken(n, "hitomi") || ContainsToken(n, "mayu") || ContainsToken(n, "kuchi") ||
+                   ContainsToken(n, "mimi") || ContainsToken(n, "kubi") || ContainsToken(n, "manuka") ||
+                   ContainsToken(n, "powari");
         }
 
         private static bool ContainsToken(string name, string token)
@@ -487,8 +509,11 @@ namespace XVR.Tools
             bool startOk = i == 0 || !char.IsLetterOrDigit(name[i - 1]);
             int end = i + token.Length;
             bool endOk = end >= name.Length || !char.IsLetterOrDigit(name[end]);
+            // Allow glued names like MANUKA_atama / HeadGeo / HairBand
             if (token == "head" || token == "hair" || token == "face" || token == "eye" ||
-                token == "wig" || token == "bang" || token == "braid" || token == "ponytail")
+                token == "wig" || token == "bang" || token == "braid" || token == "ponytail" ||
+                token == "atama" || token == "kao" || token == "kami" || token == "manuka" ||
+                token == "powari" || token == "hitomi")
                 return true;
             return startOk && endOk;
         }
