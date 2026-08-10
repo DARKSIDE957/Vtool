@@ -172,12 +172,14 @@ Test on a copy of your project if you are unsure.
 > [!IMPORTANT]
 > Some users still report the **avatar head / face disappearing after clicking Fix**. I am **still investigating and hardening** head/face/hair protection (latest work in **v2.2.8+**).
 >
-> If this happens to you:
+> **Try not to always use Auto Fix / Fix All.** Prefer **Check** first, then run only the specific Individual fix you need, after **Backup Avatar**.
+>
+> If the head disappears:
 > 1. Click **Rollback Avatar** immediately (or Unity **Ctrl+Z**)
 > 2. Note which Fix button you used (**Fix All**, **Reduce PhysBones**, **Remove missing scripts**, etc.)
 > 3. Use **Check → Copy Error Codes** and [open an issue](https://github.com/DARKSIDE957/Vtool/issues) with that report + avatar setup notes (humanoid? face mesh name?)
 >
-> Until this is fully resolved, prefer **Backup Avatar** first and avoid optional Individual fixes on production avatars.
+> Until this is fully resolved, avoid optional Individual fixes on production avatars unless you have a backup.
 
 <br/>
 
