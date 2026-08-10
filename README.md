@@ -177,7 +177,7 @@ Test on a copy of your project if you are unsure.
 > If the head disappears:
 > 1. Click **Rollback Avatar** immediately (or Unity **Ctrl+Z**)
 > 2. Note which Fix button you used (**Fix All**, **Reduce PhysBones**, **Remove missing scripts**, etc.)
-> 3. Use **Check → Copy Error Codes** and [open an issue](https://github.com/DARKSIDE957/Vtool/issues) with that report + avatar setup notes (humanoid? face mesh name?)
+> 3. Use **Check → Copy Error Codes** and [open an issue](https://github.com/DARKSIDE957/Vtool/issues) with that report + avatar setup notes
 >
 > Until this is fully resolved, avoid optional Individual fixes on production avatars unless you have a backup.
 
