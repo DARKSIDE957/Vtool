@@ -33,13 +33,13 @@ Vtool is a Unity Editor window for VRChat avatar creators. Point it at your avat
 | **Install** | VRChat Creator Companion (VCC) |
 | **Price** | Free |
 | **Code** | Open source on this repo |
-| **Languages** | English, Arabic, Spanish (bilingual labels) |
+| **Languages** | English, Arabic, Spanish, French (bilingual labels) |
 
 <br/>
 
 ## Languages and help
 
-Pick a language in the window header. Non-English UI shows bilingual labels like `فحص (Check)`. VRChat terms such as **PhysBones**, **PipelineManager**, and **Quest** stay in English. Arabic window text is shaped for Unity IMGUI; Arabic pop-ups use dialog-safe shaping so letters stay connected and read right-to-left.
+Pick a language in the window header. Non-English UI shows bilingual labels like `فحص (Check)` or `Vérifier (Check)`. VRChat terms such as **PhysBones**, **PipelineManager**, and **Quest** stay in English. Arabic window text is shaped for Unity IMGUI; Arabic pop-ups use dialog-safe shaping so letters stay connected and read right-to-left.
 
 Hover buttons for tooltips. Major actions also show a short caption explaining what they do and what they will not delete.
 
@@ -194,6 +194,9 @@ Test on a copy of your project if you are unsure.
 <br/>
 
 ## Changelog
+
+### v2.4.3
+- Full **French** language support (UI, dialogs, scan messages) with bilingual labels
 
 ### v2.4.2
 - Support link switched from Buy Me a Coffee to [Ko-fi](https://ko-fi.com/c/4e4397f93e)
