@@ -175,7 +175,7 @@ Test on a copy of your project if you are unsure.
 ## Known issue: head disappearing
 
 > [!IMPORTANT]
-> Some users still report the **avatar head / face disappearing after clicking Fix** (reported on bases like **Manuka** / **Powari**, whose head mesh is often named `*_atama`). I am **still investigating and hardening** head/face/hair protection (latest work in **v2.3.0+**).
+> Some users reported the **avatar head / face disappearing after clicking Fix** (especially bases like **Manuka** / **Powari**, head mesh often named `*_atama`). Hardening continues in **v2.3.0+** (skip bad bounds rewrites on head/face; Japanese/romaji head names).
 >
 > **It is okay to use the tool.** Prefer **Individual fixes** for only what you need. **Do not always use Fix All / Auto Fix.**
 >
@@ -185,6 +185,23 @@ Test on a copy of your project if you are unsure.
 > 1. Click **Rollback Avatar** immediately (or Unity **Ctrl+Z**)
 > 2. Note which Fix button you used (**Fix All**, **Reduce PhysBones**, **Remove missing scripts**, etc.)
 > 3. Use **Check → Copy Error Codes** and [open an issue](https://github.com/DARKSIDE957/Vtool/issues) with that report + avatar setup notes
+
+<br/>
+
+## Changelog
+
+### v2.4.0
+- Quest/mobile PhysBone warnings (8 components / 64 transforms / colliders)
+- Warn when a single PhysBone affects more than 256 transforms
+- Package version shown in the window header
+- Clearer Fix All confirmation (prefer Individual fixes)
+- Docs refresh
+
+### v2.3.0
+- Manuka/Powari-style head cull fix (`*_atama`, skip head bounds rewrite)
+
+### v2.2.9
+- Compact window layout (tabs stay visible; content scrolls)
 
 <br/>
 

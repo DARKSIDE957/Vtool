@@ -396,9 +396,9 @@ namespace XVR.Tools
             Add("dlg.convert", "Convert", "تحويل", "Convertir");
 
             Add("dlg.fix_all.title", "Fix All", "إصلاح الكل", "Reparar todo");
-            Add("dlg.fix_all.body", "Applies safe fixes only.\n\nA rollback copy is saved first so you can undo everything.\n\nContinue?",
-                "يطبق إصلاحات آمنة فقط.\n\nتُحفظ نسخة تراجع أولاً للتراجع عن كل شيء.\n\nمتابعة؟",
-                "Aplica solo reparaciones seguras.\n\nSe guarda un rollback primero para poder deshacer todo.\n\n¿Continuar?");
+            Add("dlg.fix_all.body", "Applies safe fixes only (materials, PipelineManager, bounds, audio, view, lip sync).\n\nPrefer Individual fixes when possible.\nA rollback copy is saved first.\n\nHead/face/hair meshes are not deleted.\n\nContinue?",
+                "يطبق إصلاحات آمنة فقط (المواد، PipelineManager، الحدود، الصوت، الرؤية، lip sync).\n\nفضّل الإصلاحات الفردية عند الإمكان.\nتُحفظ نقطة تراجع أولاً.\n\nلا تُحذف شبكات الرأس/الوجه/الشعر.\n\nمتابعة؟",
+                "Aplica solo reparaciones seguras (materiales, PipelineManager, bounds, audio, vista, lip sync).\n\nPrefiere reparaciones individuales cuando puedas.\nSe guarda rollback primero.\n\nNo se borran mallas de cabeza/cara/pelo.\n\n¿Continuar?");
             Add("dlg.fix_all.result", "Material slots fixed: {0}\nPipelineManager added: {1}\nBounds fixed: {2}\nAudio fixed: {3} (playOnAwake: {4})\nView position: {5}\nLip sync: {6}\n\nRe-check the Check tab. Fix pink/broken shaders manually.",
                 "خانات المواد المصلحة: {0}\nPipelineManager المضاف: {1}\nالحدود المصلحة: {2}\nالصوت المصلح: {3} (playOnAwake: {4})\nموضع الرؤية: {5}\nLip sync: {6}\n\nأعد فحص تبويب Check. أصلح الشيدرات الوردية يدوياً.",
                 "Ranuras de material reparadas: {0}\nPipelineManager añadido: {1}\nBounds reparados: {2}\nAudio reparado: {3} (playOnAwake: {4})\nPosición de vista: {5}\nLip sync: {6}\n\nRevisa la pestaña Check. Repara shaders rotos/rosas manualmente.");
@@ -641,6 +641,32 @@ namespace XVR.Tools
             Add("hint.pb_poor", "Consider combining or reducing PhysBones",
                 "فكّر بدمج أو تقليل PhysBones",
                 "Considera combinar o reducir PhysBones");
+            Add("issue.pb_quest", "{0} PhysBones — Quest/mobile hard cap is 8 components",
+                "{0} PhysBones — حد Quest/الجوال الصارم هو 8 مكوّنات",
+                "{0} PhysBones — el límite duro de Quest/móvil es 8 componentes");
+            Add("hint.pb_quest", "For Quest uploads keep at most 8 PhysBone components",
+                "لرفع Quest أبقِ 8 مكوّنات PhysBone كحد أقصى",
+                "Para Quest mantén como máximo 8 componentes PhysBone");
+            Add("issue.pb_quest_xf", "{0} PhysBone transforms — Quest/mobile hard cap is 64",
+                "{0} تحويلات PhysBone — حد Quest/الجوال هو 64",
+                "{0} transforms PhysBone — el límite duro de Quest/móvil es 64");
+            Add("hint.pb_quest_xf", "Split or shorten PhysBone chains for Quest",
+                "قسّم أو قصّر سلاسل PhysBone لـ Quest",
+                "Divide o acorta cadenas PhysBone para Quest");
+            Add("issue.pb_xf_limit", "{0} PhysBone(s) affect more than 256 transforms each (VRChat per-component limit)",
+                "{0} PhysBone يؤثر على أكثر من 256 تحويلاً لكل مكوّن (حد VRChat)",
+                "{0} PhysBone(s) afectan más de 256 transforms cada uno (límite por componente)");
+            Add("hint.pb_xf_limit", "Split that PhysBone chain — one component cannot drive more than 256 transforms",
+                "قسّم سلسلة PhysBone — المكوّن الواحد لا يمكنه تحريك أكثر من 256 تحويلاً",
+                "Divide esa cadena PhysBone — un componente no puede mover más de 256 transforms");
+            Add("issue.pb_colliders", "{0} PhysBone colliders (16+ is over Quest/mobile Poor)",
+                "{0} PhysBone collider (16+ يتجاوز Quest/الجوال)",
+                "{0} colliders PhysBone (16+ supera Quest/móvil)");
+            Add("hint.pb_colliders", "Reduce PhysBone colliders for Quest",
+                "قلّل PhysBone colliders لـ Quest",
+                "Reduce colliders PhysBone para Quest");
+            Add("stat.pb_xf", "PB transforms", "تحويلات PB", "Transforms PB");
+            Add("stat.pb_colliders", "PB colliders", "PB colliders", "Colliders PB");
             Add("issue.bad_audio", "{0} audio source(s) need 3D spatialization",
                 "{0} مصدر صوت يحتاج تموضعاً ثلاثي الأبعاد",
                 "{0} fuente(s) de audio necesitan espacialización 3D");

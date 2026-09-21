@@ -221,7 +221,7 @@ namespace XVR.Tools
                     EditorGUILayout.BeginVertical();
                     try
                     {
-                        GUILayout.Label(L.T("header.title") ?? "Vtool", headerStyle ?? CaptionStyle());
+                        GUILayout.Label((L.T("header.title") ?? "Vtool") + "  v" + ReadPackageVersion(), headerStyle ?? CaptionStyle());
                         GUILayout.Label(L.T("header.subtitle") ?? string.Empty, subStyle ?? CaptionStyle());
                     }
                     finally
@@ -487,6 +487,11 @@ namespace XVR.Tools
                     Stat(L.T("stat.height"), $"{scan.AvatarHeightMeters:F2} m");
                     Stat(L.T("stat.physbones"), scan.PhysBoneCount.ToString(),
                         scan.PhysBoneCount > 256 ? errStyle : scan.PhysBoneCount > 32 ? warnStyle : null);
+                    Stat(L.T("stat.pb_xf"), scan.PhysBoneAffectedTransforms.ToString(),
+                        scan.PhysBoneAffectedTransforms > 256 || scan.PhysBonesOverTransformLimit > 0 ? errStyle
+                        : scan.PhysBoneAffectedTransforms > 64 ? warnStyle : null);
+                    Stat(L.T("stat.pb_colliders"), scan.PhysBoneColliderCount.ToString(),
+                        scan.PhysBoneColliderCount > 16 ? warnStyle : null);
                     Stat(L.T("stat.particles"), scan.ParticleCount.ToString(), scan.ParticleCount > 16 ? warnStyle : null);
                 });
 
@@ -701,7 +706,7 @@ namespace XVR.Tools
                 }
             }
             catch { /* ignore */ }
-            return "2.3.0";
+            return "2.4.0";
         }
 
         private void CopyErrorCodes(AvatarScanResult scan)

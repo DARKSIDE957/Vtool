@@ -44,6 +44,9 @@ namespace XVR.Tools
         public int NonUnitScales;
         public int LegacyDynamicBones;
         public int PhysBoneCount;
+        public int PhysBoneColliderCount;
+        public int PhysBoneAffectedTransforms;
+        public int PhysBonesOverTransformLimit;
         public int BadAudioCount;
         public int AudioPlayOnAwake;
         public int ParticleCount;
@@ -141,7 +144,7 @@ namespace XVR.Tools
 
             r.RootScaleIsOne = avatar.transform.localScale == Vector3.one;
             r.LegacyDynamicBones = CountType(avatar, "DynamicBone");
-            r.PhysBoneCount = CountType(avatar, "VRC.SDK3.Dynamics.PhysBone.Components.VRCPhysBone");
+            AnalyzePhysBones(avatar, ref r);
             r.ParticleCount = avatar.GetComponentsInChildren<ParticleSystem>(true).Length;
             r.OtherAvatarsInScene = CountOtherAvatars(avatar);
 
@@ -235,6 +238,14 @@ namespace XVR.Tools
                 r.Issues.Add(IssueF(IssueSeverity.Warning, "W_DYNBONE", "issue.dynbone", "hint.dynbone", r.LegacyDynamicBones));
             if (r.PhysBoneCount > 32 && r.PhysBoneCount <= 256)
                 r.Issues.Add(IssueF(IssueSeverity.Warning, "W_PB_POOR", "issue.pb_poor", "hint.pb_poor", r.PhysBoneCount));
+            if (r.PhysBoneCount > 8)
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "W_PB_QUEST", "issue.pb_quest", "hint.pb_quest", r.PhysBoneCount));
+            if (r.PhysBoneAffectedTransforms > 64)
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "W_PB_QUEST_XF", "issue.pb_quest_xf", "hint.pb_quest_xf", r.PhysBoneAffectedTransforms));
+            if (r.PhysBonesOverTransformLimit > 0)
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "W_PB_XF_LIMIT", "issue.pb_xf_limit", "hint.pb_xf_limit", r.PhysBonesOverTransformLimit));
+            if (r.PhysBoneColliderCount > 16)
+                r.Issues.Add(IssueF(IssueSeverity.Warning, "W_PB_COLLIDERS", "issue.pb_colliders", "hint.pb_colliders", r.PhysBoneColliderCount));
             if (r.BadAudioCount > 0)
                 r.Issues.Add(IssueF(IssueSeverity.Warning, "W_BAD_AUDIO", "issue.bad_audio", "hint.fix_all_audio", r.BadAudioCount));
             if (r.AudioPlayOnAwake > 0)
@@ -310,7 +321,7 @@ namespace XVR.Tools
             sb.AppendLine("--- Stats ---");
             sb.AppendLine($"Blockers: {scan.BlockerCount} | Warnings: {scan.WarningCount}");
             sb.AppendLine($"Polys: {scan.PolyCount} | Skinned: {scan.SkinnedMeshCount} | Mats: {scan.MaterialSlots} | Bones: {scan.BoneCount}");
-            sb.AppendLine($"Height: {scan.AvatarHeightMeters:F2}m | PhysBones: {scan.PhysBoneCount} | Particles: {scan.ParticleCount}");
+            sb.AppendLine($"Height: {scan.AvatarHeightMeters:F2}m | PhysBones: {scan.PhysBoneCount} (xf:{scan.PhysBoneAffectedTransforms}, colliders:{scan.PhysBoneColliderCount}) | Particles: {scan.ParticleCount}");
             sb.AppendLine($"Textures: {scan.TextureCount} | 4K: {scan.Textures4K} | >2K: {scan.TexturesOver2K} | ~{scan.TextureMemoryMB:F0}MB | NoMip: {scan.TexturesNoMipmaps}");
             sb.AppendLine($"Descriptor: {scan.HasDescriptor} | Pipeline: {scan.HasPipelineManager} | Humanoid: {scan.HasHumanoidAnimator}");
             sb.AppendLine($"Chest: {scan.HasChestBone} | View: {scan.HasViewPosition} | LipSync: {scan.HasLipSync}");
@@ -318,6 +329,53 @@ namespace XVR.Tools
             sb.AppendLine($"QuestBadShaders: {scan.QuestBadShaders} | OtherAvatars: {scan.OtherAvatarsInScene}");
             sb.AppendLine("=== End ===");
             return sb.ToString();
+        }
+
+        private static void AnalyzePhysBones(GameObject avatar, ref AvatarScanResult r)
+        {
+            var pbType = VtoolAvatarFixes.GetTypeSafe("VRC.SDK3.Dynamics.PhysBone.Components.VRCPhysBone");
+            var colliderType = VtoolAvatarFixes.GetTypeSafe("VRC.SDK3.Dynamics.PhysBone.Components.VRCPhysBoneCollider");
+
+            if (colliderType != null)
+                r.PhysBoneColliderCount = avatar.GetComponentsInChildren(colliderType, true).Length;
+
+            if (pbType == null)
+            {
+                r.PhysBoneCount = 0;
+                return;
+            }
+
+            var components = avatar.GetComponentsInChildren(pbType, true);
+            r.PhysBoneCount = components.Length;
+            int totalTransforms = 0;
+            int overLimit = 0;
+
+            foreach (var obj in components)
+            {
+                var c = obj as Component;
+                if (c == null) continue;
+
+                Transform root = c.transform;
+                if (VtoolAvatarFixes.TryGetMember(c, pbType, "rootTransform", out var rootObj) && rootObj is Transform rt && rt != null)
+                    root = rt;
+
+                int count = CountHierarchyTransforms(root);
+                totalTransforms += count;
+                if (count > 256)
+                    overLimit++;
+            }
+
+            r.PhysBoneAffectedTransforms = totalTransforms;
+            r.PhysBonesOverTransformLimit = overLimit;
+        }
+
+        private static int CountHierarchyTransforms(Transform root)
+        {
+            if (root == null) return 0;
+            int n = 1;
+            for (int i = 0; i < root.childCount; i++)
+                n += CountHierarchyTransforms(root.GetChild(i));
+            return n;
         }
 
         private static void AnalyzeTextures(HashSet<Texture> textures, ref AvatarScanResult r)
