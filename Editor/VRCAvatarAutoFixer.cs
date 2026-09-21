@@ -6,7 +6,7 @@ namespace XVR.Tools
 {
     public class VRCAvatarAutoFixer : EditorWindow
     {
-        private const string SupportUrl = "https://buymeacoffee.com/Omv1";
+        private const string SupportUrl = "https://ko-fi.com/c/4e4397f93e";
         private static readonly Color Accent = new Color(0.78f, 0.18f, 0.24f);
         private static readonly Color Muted = new Color(0.62f, 0.62f, 0.62f);
 
@@ -706,7 +706,7 @@ namespace XVR.Tools
                 }
             }
             catch { /* ignore */ }
-            return "2.4.1";
+            return "2.4.2";
         }
 
         private void CopyErrorCodes(AvatarScanResult scan)

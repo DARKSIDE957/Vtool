@@ -195,6 +195,9 @@ Test on a copy of your project if you are unsure.
 
 ## Changelog
 
+### v2.4.2
+- Support link switched from Buy Me a Coffee to [Ko-fi](https://ko-fi.com/c/4e4397f93e)
+
 ### v2.4.1
 - Fix All no longer rewrites skinned mesh bounds (Individual only; still skips head/face)
 - Stronger JP/Booth head-face protection (`rootBone` Head/Neck/Jaw/Eyes, more name tokens, MMD/viseme shapes)
@@ -221,7 +224,7 @@ Test on a copy of your project if you are unsure.
 
 - [Releases](https://github.com/DARKSIDE957/Vtool/releases)
 - [Report a bug](https://github.com/DARKSIDE957/Vtool/issues)
-- [Buy Me a Coffee](https://buymeacoffee.com/Omv1) (optional)
+- [Ko-fi](https://ko-fi.com/c/4e4397f93e) (optional)
 
 <br/>
 

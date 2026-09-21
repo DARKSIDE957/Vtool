@@ -214,7 +214,7 @@ namespace XVR.Tools
                 "الإصلاح الشامل لا يحذف الشبكات أو الكائنات أو المواد. لا يُزال شيء من الرأس. يتم حفظ التراجع قبل الإصلاحات.",
                 "Reparar todo nunca elimina mallas, objetos ni materiales. Nada de la cabeza se elimina. El rollback se guarda antes de reparar.");
             Add("lang.label", "Language", "اللغة", "Idioma");
-            Add("support.coffee", "Support on Buy Me a Coffee", "ادعم عبر Buy Me a Coffee", "Apoyar en Buy Me a Coffee");
+            Add("support.coffee", "Support on Ko-fi", "ادعم عبر Ko-fi", "Apoyar en Ko-fi");
 
             Add("assign.avatar", "Assign an avatar root to run checks and fixes.",
                 "عيّن جذر الأفاتار لتشغيل الفحوصات والإصلاحات.",
