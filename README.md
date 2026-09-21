@@ -39,7 +39,7 @@ Vtool is a Unity Editor window for VRChat avatar creators. Point it at your avat
 
 ## Languages and help
 
-Pick a language in the window header. Non-English UI shows bilingual labels like `فحص (Check)`. VRChat terms such as **PhysBones**, **PipelineManager**, and **Quest** stay in English.
+Pick a language in the window header. Non-English UI shows bilingual labels like `فحص (Check)`. VRChat terms such as **PhysBones**, **PipelineManager**, and **Quest** stay in English. Arabic window text is shaped for Unity IMGUI; Arabic pop-ups use dialog-safe shaping so letters stay connected and read right-to-left.
 
 Hover buttons for tooltips. Major actions also show a short caption explaining what they do and what they will not delete.
 
@@ -144,12 +144,13 @@ https://raw.githubusercontent.com/DARKSIDE957/Vtool/main/index.json
 
 Fix All is conservative. It does **not** delete meshes, GameObjects, or material slots. It also **never removes anything on the head, face, or hair**.
 
-- Fills null material slots using a nearby material on the same renderer
+- Fills null material slots using a nearby material on the same renderer (never invents placeholders on head/face)
 - Adds `PipelineManager` if missing
-- Fixes skinned mesh bounds
 - Fixes audio (3D, volume, play on awake)
 - Sets view position **only if empty**
 - Sets lip sync **only if empty**
+
+**Skinned mesh bounds are not changed by Fix All** — use the Individual **Fix skinned mesh bounds** action if you need that (it still skips head/face).
 
 Missing scripts and excess PhysBones (scripts only — never GameObjects/meshes, and never on head/face/hair), mipmaps, scene avatars, and placeholder materials are under **Individual fixes** with a confirmation dialog.
 
@@ -175,9 +176,13 @@ Test on a copy of your project if you are unsure.
 ## Known issue: head disappearing
 
 > [!IMPORTANT]
-> Some users reported the **avatar head / face disappearing after clicking Fix** (especially bases like **Manuka** / **Powari**, head mesh often named `*_atama`). Hardening continues in **v2.3.0+** (skip bad bounds rewrites on head/face; Japanese/romaji head names).
+> I am **still trying my best** to stop the head / face from disappearing after Fix — especially on **Japanese Booth bases** (Manuka, Powari, Lime/Chiffon-family, meshes like `*_atama`, face often named `Body`).
 >
-> **It is okay to use the tool.** Prefer **Individual fixes** for only what you need. **Do not always use Fix All / Auto Fix.**
+> This is **not** because the avatar is short or tall. The usual cause is bad **skinned mesh bounds** (frustum cull): the mesh is still there, Unity just stops drawing it. Wrong materials on a missed face mesh can look the same.
+>
+> **v2.4.1** removes bounds from Fix All, expands JP/Booth head-face detection (`rootBone` Head, more romaji/base names), and hardens face material handling. Prefer **Individual fixes**. **Do not always use Fix All / Auto Fix.**
+>
+> Arabic: dialogs should show connected RTL text (native popups no longer get IMGUI-reversed Arabic).
 >
 > Suggested flow: **Check** → **Backup Avatar** → run one Individual fix at a time.
 >
@@ -189,6 +194,13 @@ Test on a copy of your project if you are unsure.
 <br/>
 
 ## Changelog
+
+### v2.4.1
+- Fix All no longer rewrites skinned mesh bounds (Individual only; still skips head/face)
+- Stronger JP/Booth head-face protection (`rootBone` Head/Neck/Jaw/Eyes, more name tokens, MMD/viseme shapes)
+- Safer materials on protected face/head (no array expansion / placeholders)
+- Arabic native dialogs: shape connected letters without IMGUI reverse (fixes upside-down / LTR popups)
+- Docs: clarify head cull is bounds-related, not avatar height
 
 ### v2.4.0
 - Quest/mobile PhysBone warnings (8 components / 64 transforms / colliders)

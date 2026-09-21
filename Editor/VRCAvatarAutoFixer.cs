@@ -621,16 +621,16 @@ namespace XVR.Tools
                     int cap = textureCapSize;
                     Defer(() =>
                     {
-                        if (!EditorUtility.DisplayDialog(L.T("dlg.tex.reduce_title"),
-                            L.TF("dlg.tex.reduce_body", cap),
-                            L.T("dlg.reduce"), L.T("dlg.cancel")))
+                        if (!EditorUtility.DisplayDialog(L.TDialog("dlg.tex.reduce_title"),
+                            L.TFDialog("dlg.tex.reduce_body", cap),
+                            L.TDialog("dlg.reduce"), L.TDialog("dlg.cancel")))
                             return;
 
                         var textures = VtoolAvatarFixes.CollectTextures(targetAvatar);
                         VtoolAvatarRollback.EnsureCapture(targetAvatar);
                         VtoolAvatarRollback.RecordTextures(targetAvatar, textures);
                         int n = VtoolAvatarFixes.CapTextureSizes(targetAvatar, cap);
-                        EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.tex.reduce_done", n), L.T("dlg.ok"));
+                        EditorUtility.DisplayDialog(L.TDialog("dlg.done"), L.TFDialog("dlg.tex.reduce_done", n), L.TDialog("dlg.ok"));
                     });
                 }
                 GUI.backgroundColor = prev;
@@ -640,16 +640,16 @@ namespace XVR.Tools
                 {
                     Defer(() =>
                     {
-                        if (!EditorUtility.DisplayDialog(L.T("dlg.tex.restore_title"),
-                            L.T("dlg.tex.restore_body"),
-                            L.T("dlg.restore"), L.T("dlg.cancel")))
+                        if (!EditorUtility.DisplayDialog(L.TDialog("dlg.tex.restore_title"),
+                            L.TDialog("dlg.tex.restore_body"),
+                            L.TDialog("dlg.restore"), L.TDialog("dlg.cancel")))
                             return;
 
                         var textures = VtoolAvatarFixes.CollectTextures(targetAvatar);
                         VtoolAvatarRollback.EnsureCapture(targetAvatar);
                         VtoolAvatarRollback.RecordTextures(targetAvatar, textures);
                         int n = VtoolAvatarFixes.RestoreTextureSizes(targetAvatar);
-                        EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.tex.restore_done", n), L.T("dlg.ok"));
+                        EditorUtility.DisplayDialog(L.TDialog("dlg.done"), L.TFDialog("dlg.tex.restore_done", n), L.TDialog("dlg.ok"));
                     });
                 }
 
@@ -657,9 +657,9 @@ namespace XVR.Tools
                 {
                     Defer(() =>
                     {
-                        if (!EditorUtility.DisplayDialog(L.T("dlg.tex.mip_title"),
-                            L.T("dlg.tex.mip_body"),
-                            L.T("dlg.enable"), L.T("dlg.cancel")))
+                        if (!EditorUtility.DisplayDialog(L.TDialog("dlg.tex.mip_title"),
+                            L.TDialog("dlg.tex.mip_body"),
+                            L.TDialog("dlg.enable"), L.TDialog("dlg.cancel")))
                             return;
                         WithUndo(() => VtoolAvatarFixes.EnableTextureMipmaps(targetAvatar), trackTextures: true);
                     });
@@ -675,14 +675,14 @@ namespace XVR.Tools
                 {
                     Defer(() =>
                     {
-                        if (!EditorUtility.DisplayDialog(L.T("dlg.quest.title"),
-                            L.T("dlg.quest.body"),
-                            L.T("dlg.convert"), L.T("dlg.cancel")))
+                        if (!EditorUtility.DisplayDialog(L.TDialog("dlg.quest.title"),
+                            L.TDialog("dlg.quest.body"),
+                            L.TDialog("dlg.convert"), L.TDialog("dlg.cancel")))
                             return;
 
                         VtoolAvatarRollback.EnsureCapture(targetAvatar);
                         int n = VtoolAvatarFixes.ConvertToQuestShaders(targetAvatar, true);
-                        EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.quest.done", n), L.T("dlg.ok"));
+                        EditorUtility.DisplayDialog(L.TDialog("dlg.done"), L.TFDialog("dlg.quest.done", n), L.TDialog("dlg.ok"));
                     });
                 }
                 Caption("cap.quest_convert");
@@ -706,7 +706,7 @@ namespace XVR.Tools
                 }
             }
             catch { /* ignore */ }
-            return "2.4.0";
+            return "2.4.1";
         }
 
         private void CopyErrorCodes(AvatarScanResult scan)
@@ -718,29 +718,28 @@ namespace XVR.Tools
             EditorGUIUtility.systemCopyBuffer = report;
             Debug.Log("[Vtool] Diagnostic report copied to clipboard.\n" + report);
             EditorUtility.DisplayDialog(
-                L.T("dlg.copy_errors.title") ?? "Copied",
-                L.T("dlg.copy_errors.body") ?? "Error codes and scan details were copied to the clipboard. Paste them when reporting a problem.",
-                L.T("dlg.ok") ?? "OK");
+                L.TDialog("dlg.copy_errors.title") ?? "Copied",
+                L.TDialog("dlg.copy_errors.body") ?? "Error codes and scan details were copied to the clipboard. Paste them when reporting a problem.",
+                L.TDialog("dlg.ok") ?? "OK");
         }
 
         private void RunFixAll()
         {
-            if (!EditorUtility.DisplayDialog(L.T("dlg.fix_all.title"), L.T("dlg.fix_all.body"), L.T("dlg.fix"), L.T("dlg.cancel")))
+            if (!EditorUtility.DisplayDialog(L.TDialog("dlg.fix_all.title"), L.TDialog("dlg.fix_all.body"), L.TDialog("dlg.fix"), L.TDialog("dlg.cancel")))
                 return;
 
             VtoolAvatarRollback.Capture(targetAvatar);
             var s = VtoolAvatarFixes.ApplyAllSafeFixes(targetAvatar);
 
-            EditorUtility.DisplayDialog(L.T("dlg.fix_complete"),
-                L.TF("dlg.fix_all.result",
+            EditorUtility.DisplayDialog(L.TDialog("dlg.fix_complete"),
+                L.TFDialog("dlg.fix_all.result",
                     s.MaterialSlots,
-                    s.PipelineManager ? L.T("dlg.yes") : L.T("dlg.no"),
-                    s.Bounds,
+                    s.PipelineManager ? L.TDialog("dlg.yes") : L.TDialog("dlg.no"),
                     s.Audio,
                     s.AudioPlayOnAwake,
-                    s.ViewPosition ? L.T("dlg.set") : L.T("dlg.skipped"),
-                    s.LipSync ? L.T("dlg.set") : L.T("dlg.skipped")),
-                L.T("dlg.ok"));
+                    s.ViewPosition ? L.TDialog("dlg.set") : L.TDialog("dlg.skipped"),
+                    s.LipSync ? L.TDialog("dlg.set") : L.TDialog("dlg.skipped")),
+                L.TDialog("dlg.ok"));
             Repaint();
         }
 
@@ -750,13 +749,13 @@ namespace XVR.Tools
             int excess = count - 256;
             if (excess <= 0)
             {
-                EditorUtility.DisplayDialog(L.T("dlg.pb.title"), L.TF("dlg.pb.ok_body", count), L.T("dlg.ok"));
+                EditorUtility.DisplayDialog(L.TDialog("dlg.pb.title"), L.TFDialog("dlg.pb.ok_body", count), L.TDialog("dlg.ok"));
                 return;
             }
 
-            if (!EditorUtility.DisplayDialog(L.T("dlg.pb.reduce_title"),
-                L.TF("dlg.pb.reduce_body", count, excess),
-                L.T("dlg.reduce"), L.T("dlg.cancel")))
+            if (!EditorUtility.DisplayDialog(L.TDialog("dlg.pb.reduce_title"),
+                L.TFDialog("dlg.pb.reduce_body", count, excess),
+                L.TDialog("dlg.reduce"), L.TDialog("dlg.cancel")))
                 return;
 
             WithUndo(() =>
@@ -765,64 +764,64 @@ namespace XVR.Tools
                 int after = VtoolAvatarScan.Scan(targetAvatar).PhysBoneCount;
                 string msg;
                 if (n <= 0)
-                    msg = L.T("dlg.pb.none_safe") ?? "Nothing removed — head/face/hair protected.";
+                    msg = L.TDialog("dlg.pb.none_safe") ?? "Nothing removed — head/face/hair protected.";
                 else
                 {
-                    msg = L.TF("dlg.pb.done", n);
+                    msg = L.TFDialog("dlg.pb.done", n);
                     if (after > 256)
-                        msg += "\n\n" + L.TF("dlg.pb.head_kept", after);
+                        msg += "\n\n" + L.TFDialog("dlg.pb.head_kept", after);
                 }
-                EditorUtility.DisplayDialog(L.T("dlg.done"), msg, L.T("dlg.ok"));
+                EditorUtility.DisplayDialog(L.TDialog("dlg.done"), msg, L.TDialog("dlg.ok"));
             });
         }
 
         private void RunRemoveMissingScripts()
         {
-            if (!EditorUtility.DisplayDialog(L.T("dlg.missing.title"), L.T("dlg.missing.body"), L.T("dlg.remove"), L.T("dlg.cancel")))
+            if (!EditorUtility.DisplayDialog(L.TDialog("dlg.missing.title"), L.TDialog("dlg.missing.body"), L.TDialog("dlg.remove"), L.TDialog("dlg.cancel")))
                 return;
 
             WithUndo(() =>
             {
                 int n = VtoolAvatarFixes.RemoveMissingScripts(targetAvatar);
-                EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.missing.done", n), L.T("dlg.ok"));
+                EditorUtility.DisplayDialog(L.TDialog("dlg.done"), L.TFDialog("dlg.missing.done", n), L.TDialog("dlg.ok"));
             });
         }
 
         private void RunPlaceholderMaterials()
         {
-            if (!EditorUtility.DisplayDialog(L.T("dlg.placeholder.title"), L.T("dlg.placeholder.body"), L.T("dlg.continue"), L.T("dlg.cancel")))
+            if (!EditorUtility.DisplayDialog(L.TDialog("dlg.placeholder.title"), L.TDialog("dlg.placeholder.body"), L.TDialog("dlg.continue"), L.TDialog("dlg.cancel")))
                 return;
 
             WithUndo(() =>
             {
                 int n = VtoolAvatarFixes.FixMissingMaterials(targetAvatar, allowPlaceholder: true);
-                EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.placeholder.done", n), L.T("dlg.ok"));
+                EditorUtility.DisplayDialog(L.TDialog("dlg.done"), L.TFDialog("dlg.placeholder.done", n), L.TDialog("dlg.ok"));
             });
         }
 
         private void RunDisableOtherAvatars()
         {
-            if (!EditorUtility.DisplayDialog(L.T("dlg.disable.title"), L.T("dlg.disable.body"), L.T("dlg.disable"), L.T("dlg.cancel")))
+            if (!EditorUtility.DisplayDialog(L.TDialog("dlg.disable.title"), L.TDialog("dlg.disable.body"), L.TDialog("dlg.disable"), L.TDialog("dlg.cancel")))
                 return;
 
             WithUndo(() =>
             {
                 int n = VtoolAvatarFixes.DisableOtherAvatars(targetAvatar);
-                EditorUtility.DisplayDialog(L.T("dlg.done"), L.TF("dlg.disable.done", n), L.T("dlg.ok"));
+                EditorUtility.DisplayDialog(L.TDialog("dlg.done"), L.TFDialog("dlg.disable.done", n), L.TDialog("dlg.ok"));
             });
         }
 
         private void RunClearBlueprintId()
         {
-            if (!EditorUtility.DisplayDialog(L.T("dlg.blueprint.title"), L.T("dlg.blueprint.body"), L.T("dlg.clear"), L.T("dlg.cancel")))
+            if (!EditorUtility.DisplayDialog(L.TDialog("dlg.blueprint.title"), L.TDialog("dlg.blueprint.body"), L.TDialog("dlg.clear"), L.TDialog("dlg.cancel")))
                 return;
 
             WithUndo(() =>
             {
                 bool ok = VtoolAvatarFixes.ClearBlueprintId(targetAvatar);
-                EditorUtility.DisplayDialog(L.T("dlg.done"),
-                    ok ? L.T("dlg.blueprint.cleared") : L.T("dlg.blueprint.nothing"),
-                    L.T("dlg.ok"));
+                EditorUtility.DisplayDialog(L.TDialog("dlg.done"),
+                    ok ? L.TDialog("dlg.blueprint.cleared") : L.TDialog("dlg.blueprint.nothing"),
+                    L.TDialog("dlg.ok"));
             });
         }
 
@@ -830,11 +829,11 @@ namespace XVR.Tools
         {
             if (targetAvatar == null || !VtoolAvatarRollback.HasRollback(targetAvatar)) return;
 
-            if (!EditorUtility.DisplayDialog(L.T("dlg.rollback.title"), L.T("dlg.rollback.body"), L.T("dlg.rollback"), L.T("dlg.cancel")))
+            if (!EditorUtility.DisplayDialog(L.TDialog("dlg.rollback.title"), L.TDialog("dlg.rollback.body"), L.TDialog("dlg.rollback"), L.TDialog("dlg.cancel")))
                 return;
 
             targetAvatar = VtoolAvatarRollback.Restore(targetAvatar);
-            EditorUtility.DisplayDialog(L.T("dlg.rollback.done_title"), L.T("dlg.rollback.done"), L.T("dlg.ok"));
+            EditorUtility.DisplayDialog(L.TDialog("dlg.rollback.done_title"), L.TDialog("dlg.rollback.done"), L.TDialog("dlg.ok"));
             Repaint();
         }
 
@@ -858,7 +857,7 @@ namespace XVR.Tools
             backup.SetActive(false);
             Undo.RegisterCreatedObjectUndo(backup, "Backup");
             VtoolAvatarFixes.MarkDirty();
-            EditorUtility.DisplayDialog(L.T("dlg.backup.title"), L.TF("dlg.backup.done", backup.name), L.T("dlg.ok"));
+            EditorUtility.DisplayDialog(L.TDialog("dlg.backup.title"), L.TFDialog("dlg.backup.done", backup.name), L.TDialog("dlg.ok"));
         }
 
         private void AutoDetectAvatar()
@@ -890,6 +889,9 @@ namespace XVR.Tools
             public static string[] LanguageDisplayNames => VtoolLocalization.LanguageDisplayNames;
             public static string T(string key) => VtoolLocalization.T(key);
             public static string TF(string key, params object[] args) => VtoolLocalization.TF(key, args);
+            public static string TDialog(string key) => VtoolLocalization.TDialog(key);
+            public static string TFDialog(string key, params object[] args) => VtoolLocalization.TFDialog(key, args);
+            public static string PrepareDialog(string text) => VtoolLocalization.PrepareDialog(text);
         }
     }
 }

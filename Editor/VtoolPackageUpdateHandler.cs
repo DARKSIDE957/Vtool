@@ -114,9 +114,9 @@ namespace XVR.Tools
             else if (diskVersion == loadedVersion && diskStamp == loadedStamp)
             {
                 EditorUtility.DisplayDialog(
-                    VtoolLocalization.T("update.dialog_title"),
-                    VtoolLocalization.T("update.already_latest"),
-                    VtoolLocalization.T("dlg.ok"));
+                    VtoolLocalization.TDialog("update.dialog_title"),
+                    VtoolLocalization.TDialog("update.already_latest"),
+                    VtoolLocalization.TDialog("dlg.ok"));
                 return;
             }
 
@@ -138,9 +138,9 @@ namespace XVR.Tools
             if (!silent)
             {
                 EditorUtility.DisplayDialog(
-                    VtoolLocalization.T("update.dialog_title"),
-                    VtoolLocalization.T("update.reload_body"),
-                    VtoolLocalization.T("dlg.ok"));
+                    VtoolLocalization.TDialog("update.dialog_title"),
+                    VtoolLocalization.TDialog("update.reload_body"),
+                    VtoolLocalization.TDialog("dlg.ok"));
             }
 
             EditorApplication.delayCall += () =>

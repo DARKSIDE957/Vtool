@@ -45,6 +45,30 @@ namespace XVR.Tools
             return sb.ToString();
         }
 
+        // Shape ligatures for native OS dialogs (EditorUtility.DisplayDialog).
+        // Do NOT reverse — Windows already applies RTL; reversing would scramble text.
+        public static string ShapeForNativeUi(string input)
+        {
+            if (string.IsNullOrEmpty(input) || !ContainsArabic(input))
+                return input;
+
+            if (IsMostlyPresentationForms(input))
+                return input;
+
+            var lines = input.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            var sb = new StringBuilder(input.Length + 8);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (i > 0) sb.Append('\n');
+                string line = lines[i];
+                if (string.IsNullOrEmpty(line) || !ContainsArabic(line))
+                    sb.Append(line);
+                else
+                    sb.Append(Shape(line));
+            }
+            return sb.ToString();
+        }
+
         private static string FixLine(string line)
         {
             if (string.IsNullOrEmpty(line) || !ContainsArabic(line))

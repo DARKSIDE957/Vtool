@@ -34,11 +34,11 @@ namespace XVR.Tools
         public static string[] LanguageDisplayNames => new[]
         {
             "English",
-            "Arabic (العربية)",
+            "Arabic (" + VtoolArabicImgui.Fix("العربية") + ")",
             "Español (Spanish)"
         };
 
-        // All UI / dialog text should go through T or TF so Arabic is shaped for IMGUI.
+        // All IMGUI UI text should go through T or TF so Arabic is shaped + reversed for LTR.
         public static string T(string key)
         {
             EnsureReady();
@@ -89,6 +89,63 @@ namespace XVR.Tools
             {
                 return T(key);
             }
+        }
+
+        // Native EditorUtility.DisplayDialog — shape Arabic for connected letters, do not reverse.
+        public static string TDialog(string key)
+        {
+            EnsureReady();
+            if (!Table.TryGetValue(key, out var e))
+                return PrepareDialog(key);
+
+            if (e.VrchatTermOnly || Language == VtoolLanguage.English)
+                return e.En;
+
+            string local = Language == VtoolLanguage.Arabic ? e.Ar : e.Es;
+            if (string.IsNullOrEmpty(local) || local == e.En)
+                return e.En;
+
+            if (Language == VtoolLanguage.Arabic)
+                return VtoolArabicImgui.ShapeForNativeUi(local) + " (" + e.En + ")";
+
+            return local + " (" + e.En + ")";
+        }
+
+        public static string TFDialog(string key, params object[] args)
+        {
+            EnsureReady();
+            if (!Table.TryGetValue(key, out var e))
+                return PrepareDialog(key);
+
+            try
+            {
+                if (e.VrchatTermOnly || Language == VtoolLanguage.English)
+                    return string.Format(e.En, args);
+
+                string local = Language == VtoolLanguage.Arabic ? e.Ar : e.Es;
+                if (string.IsNullOrEmpty(local) || local == e.En)
+                    return string.Format(e.En, args);
+
+                string formattedLocal = string.Format(local, args);
+                string formattedEn = string.Format(e.En, args);
+
+                if (Language == VtoolLanguage.Arabic)
+                    return VtoolArabicImgui.ShapeForNativeUi(formattedLocal) + " (" + formattedEn + ")";
+
+                return formattedLocal + " (" + formattedEn + ")";
+            }
+            catch
+            {
+                return TDialog(key);
+            }
+        }
+
+        public static string PrepareDialog(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            if (Language == VtoolLanguage.Arabic || ContainsArabic(text))
+                return VtoolArabicImgui.ShapeForNativeUi(text);
+            return text;
         }
 
         public static string Raw(string key)
@@ -288,9 +345,9 @@ namespace XVR.Tools
                 "يضيف PipelineManager على جذر الأفاتار إن كان مفقوداً.",
                 "Añade PipelineManager en la raíz del avatar si falta.");
             Add("btn.fix_bounds", "Fix skinned mesh bounds", "إصلاح حدود الشبكات الجلدية", "Reparar bounds de mallas skinned");
-            Add("tip.fix_bounds", "Recalculates SkinnedMeshRenderer local bounds so meshes cull correctly.",
-                "يعيد حساب حدود SkinnedMeshRenderer لتظهر الشبكات بشكل صحيح.",
-                "Recalcula los bounds locales de SkinnedMeshRenderer para un culling correcto.");
+            Add("tip.fix_bounds", "Expands SkinnedMeshRenderer local bounds only. Skips head/face/hair meshes so they are not culled.",
+                "يوسّع حدود SkinnedMeshRenderer المحلية فقط. يتخطى شبكات الرأس/الوجه/الشعر حتى لا تُقص.",
+                "Solo amplía los bounds locales de SkinnedMeshRenderer. Omite mallas de cabeza/cara/pelo para no cullarlas.");
             Add("btn.fix_audio", "Fix audio (3D, volume, playOnAwake)",
                 "إصلاح الصوت (ثلاثي الأبعاد، الحجم، playOnAwake)",
                 "Reparar audio (3D, volumen, playOnAwake)");
@@ -396,12 +453,12 @@ namespace XVR.Tools
             Add("dlg.convert", "Convert", "تحويل", "Convertir");
 
             Add("dlg.fix_all.title", "Fix All", "إصلاح الكل", "Reparar todo");
-            Add("dlg.fix_all.body", "Applies safe fixes only (materials, PipelineManager, bounds, audio, view, lip sync).\n\nPrefer Individual fixes when possible.\nA rollback copy is saved first.\n\nHead/face/hair meshes are not deleted.\n\nContinue?",
-                "يطبق إصلاحات آمنة فقط (المواد، PipelineManager، الحدود، الصوت، الرؤية، lip sync).\n\nفضّل الإصلاحات الفردية عند الإمكان.\nتُحفظ نقطة تراجع أولاً.\n\nلا تُحذف شبكات الرأس/الوجه/الشعر.\n\nمتابعة؟",
-                "Aplica solo reparaciones seguras (materiales, PipelineManager, bounds, audio, vista, lip sync).\n\nPrefiere reparaciones individuales cuando puedas.\nSe guarda rollback primero.\n\nNo se borran mallas de cabeza/cara/pelo.\n\n¿Continuar?");
-            Add("dlg.fix_all.result", "Material slots fixed: {0}\nPipelineManager added: {1}\nBounds fixed: {2}\nAudio fixed: {3} (playOnAwake: {4})\nView position: {5}\nLip sync: {6}\n\nRe-check the Check tab. Fix pink/broken shaders manually.",
-                "خانات المواد المصلحة: {0}\nPipelineManager المضاف: {1}\nالحدود المصلحة: {2}\nالصوت المصلح: {3} (playOnAwake: {4})\nموضع الرؤية: {5}\nLip sync: {6}\n\nأعد فحص تبويب Check. أصلح الشيدرات الوردية يدوياً.",
-                "Ranuras de material reparadas: {0}\nPipelineManager añadido: {1}\nBounds reparados: {2}\nAudio reparado: {3} (playOnAwake: {4})\nPosición de vista: {5}\nLip sync: {6}\n\nRevisa la pestaña Check. Repara shaders rotos/rosas manualmente.");
+            Add("dlg.fix_all.body", "Applies safe fixes only (materials, PipelineManager, audio, view, lip sync).\n\nPrefer Individual fixes when possible.\nA rollback copy is saved first.\n\nBounds are not changed by Fix All (use Individual if needed).\nHead/face/hair meshes are not deleted.\n\nContinue?",
+                "يطبق إصلاحات آمنة فقط (المواد، PipelineManager، الصوت، الرؤية، lip sync).\n\nفضّل الإصلاحات الفردية عند الإمكان.\nتُحفظ نقطة تراجع أولاً.\n\nلا يغيّر Fix All الحدود (استخدم الفردي عند الحاجة).\nلا تُحذف شبكات الرأس/الوجه/الشعر.\n\nمتابعة؟",
+                "Aplica solo reparaciones seguras (materiales, PipelineManager, audio, vista, lip sync).\n\nPrefiere reparaciones individuales cuando puedas.\nSe guarda rollback primero.\n\nFix All no cambia bounds (usa Individual si hace falta).\nNo se borran mallas de cabeza/cara/pelo.\n\n¿Continuar?");
+            Add("dlg.fix_all.result", "Material slots fixed: {0}\nPipelineManager added: {1}\nAudio fixed: {2} (playOnAwake: {3})\nView position: {4}\nLip sync: {5}\n\nBounds were not changed (Individual only).\nRe-check the Check tab. Fix pink/broken shaders manually.",
+                "خانات المواد المصلحة: {0}\nPipelineManager المضاف: {1}\nالصوت المصلح: {2} (playOnAwake: {3})\nموضع الرؤية: {4}\nLip sync: {5}\n\nلم تُغيَّر الحدود (فردي فقط).\nأعد فحص تبويب Check. أصلح الشيدرات الوردية يدوياً.",
+                "Ranuras de material reparadas: {0}\nPipelineManager añadido: {1}\nAudio reparado: {2} (playOnAwake: {3})\nPosición de vista: {4}\nLip sync: {5}\n\nBounds no se cambiaron (solo Individual).\nRevisa la pestaña Check. Repara shaders rotos/rosas manualmente.");
             Add("dlg.yes", "yes", "نعم", "sí");
             Add("dlg.no", "no", "لا", "no");
             Add("dlg.set", "set", "مضبوط", "configurado");

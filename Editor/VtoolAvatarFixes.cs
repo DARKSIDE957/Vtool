@@ -75,7 +75,8 @@ namespace XVR.Tools
 
             s.MaterialSlots = FixMissingMaterials(avatar, allowPlaceholder: false);
             s.PipelineManager = EnsurePipelineManager(avatar);
-            s.Bounds = FixMeshBounds(avatar);
+            // Bounds stay Individual-only: rewriting localBounds can frustum-cull JP/Booth heads.
+            s.Bounds = 0;
             s.Audio = FixAudioSources(avatar, out s.AudioPlayOnAwake);
             s.ViewPosition = AlignViewPosition(avatar, onlyIfUnset: true);
             s.LipSync = SetupLipSync(avatar, onlyIfUnset: true);
@@ -97,6 +98,11 @@ namespace XVR.Tools
             {
                 if (r == null) continue;
                 bool headProtected = IsUnderHeadProtection(r.transform, avatar, headRoots);
+                if (!headProtected && r is SkinnedMeshRenderer smrMat)
+                {
+                    if (LooksLikeFaceMesh(smrMat) || IsHeadRegionRootBone(smrMat))
+                        headProtected = true;
+                }
                 // Never invent placeholder mats on head/face/hair — that can blank the face.
                 bool canPlaceholder = allowPlaceholder && !headProtected;
 
@@ -122,7 +128,7 @@ namespace XVR.Tools
                     changed = true;
                 }
 
-                if (subCount > 0 && newMats.Length < subCount)
+                if (subCount > 0 && newMats.Length < subCount && !headProtected)
                 {
                     var expanded = new Material[subCount];
                     bool expandedChanged = false;
@@ -139,7 +145,6 @@ namespace XVR.Tools
                             fb = GetPlaceholderMaterial();
                         if (fb == null)
                         {
-                            // Keep prior slot if any — never write a shorter/null head materials array.
                             if (i < newMats.Length)
                                 expanded[i] = newMats[i];
                             continue;
@@ -188,6 +193,7 @@ namespace XVR.Tools
                 if (smr == null || smr.sharedMesh == null) continue;
                 if (IsUnderHeadProtection(smr.transform, avatar, headRoots)) continue;
                 if (LooksLikeFaceMesh(smr)) continue;
+                if (IsHeadRegionRootBone(smr)) continue;
 
                 // Expand the existing skinned localBounds — do not overwrite with mesh.bounds.
                 var b = smr.localBounds;
@@ -437,7 +443,8 @@ namespace XVR.Tools
                 bool nameHit = IsHeadRelatedName(smr.name) || IsHeadRelatedName(smr.gameObject.name) ||
                                (smr.sharedMesh != null && IsHeadRelatedName(smr.sharedMesh.name));
                 bool faceBlend = LooksLikeFaceMesh(smr);
-                if (!nameHit && !faceBlend) continue;
+                bool headRoot = IsHeadRegionRootBone(smr);
+                if (!nameHit && !faceBlend && !headRoot) continue;
 
                 roots.Add(smr.transform);
                 if (smr.rootBone != null)
@@ -445,6 +452,27 @@ namespace XVR.Tools
             }
 
             return roots;
+        }
+
+        // True when the skinned mesh's rootBone is a humanoid head-region bone (e.g. face named Body).
+        private static bool IsHeadRegionRootBone(SkinnedMeshRenderer smr)
+        {
+            if (smr == null || smr.rootBone == null) return false;
+            var anim = smr.GetComponentInParent<Animator>();
+            if (anim == null || !anim.isHuman) return false;
+
+            Transform root = smr.rootBone;
+            return SameBone(root, anim, HumanBodyBones.Head) ||
+                   SameBone(root, anim, HumanBodyBones.Neck) ||
+                   SameBone(root, anim, HumanBodyBones.Jaw) ||
+                   SameBone(root, anim, HumanBodyBones.LeftEye) ||
+                   SameBone(root, anim, HumanBodyBones.RightEye);
+        }
+
+        private static bool SameBone(Transform t, Animator anim, HumanBodyBones bone)
+        {
+            var b = anim.GetBoneTransform(bone);
+            return b != null && t == b;
         }
 
         private static bool LooksLikeFaceMesh(SkinnedMeshRenderer smr)
@@ -456,14 +484,20 @@ namespace XVR.Tools
             int hits = 0;
             for (int i = 0; i < mesh.blendShapeCount; i++)
             {
-                string n = mesh.GetBlendShapeName(i).ToLowerInvariant();
-                if (n.Contains("v_") || n.Contains("viseme") || n.Contains("sil") ||
-                    n.Contains("aa") || n.Contains("oh") || n.Contains("ch") ||
-                    n.Contains("blink") || n.Contains("jaw") || n.Contains("mouth") ||
-                    n.Contains("smile") || n.Contains("frown") || n.Contains("eye"))
+                string n = mesh.GetBlendShapeName(i);
+                string lower = n.ToLowerInvariant();
+                if (lower.Contains("v_") || lower.Contains("viseme") || lower.Contains("sil") ||
+                    lower.Contains("aa") || lower.Contains("oh") || lower.Contains("ch") ||
+                    lower.Contains("blink") || lower.Contains("jaw") || lower.Contains("mouth") ||
+                    lower.Contains("smile") || lower.Contains("frown") || lower.Contains("eye") ||
+                    lower.Contains("vrc.") || lower.Contains("mmd") || lower.Contains("mabataki") ||
+                    n.Contains("あ") || n.Contains("い") || n.Contains("う") || n.Contains("え") || n.Contains("お") ||
+                    n.Contains("まばたき") || n.Contains("ウィンク") ||
+                    n.Contains("目") || n.Contains("口"))
                     hits++;
                 if (hits >= 3) return true;
             }
+            // JP Booth faces often ship 100–400 shapes; Western faces often 20+.
             return mesh.blendShapeCount >= 20;
         }
 
@@ -481,7 +515,7 @@ namespace XVR.Tools
             // Japanese kana/kanji common on Booth bases (Manuka uses MANUKA_atama = head)
             if (n.Contains("頭") || n.Contains("顔") || n.Contains("髪") || n.Contains("目") ||
                 n.Contains("眉") || n.Contains("口") || n.Contains("耳") || n.Contains("首") ||
-                n.Contains("瞳"))
+                n.Contains("瞳") || n.Contains("睫毛") || n.Contains("まつげ"))
                 return true;
 
             return ContainsToken(n, "head") || ContainsToken(n, "face") || ContainsToken(n, "hair") ||
@@ -498,8 +532,11 @@ namespace XVR.Tools
                    // Romaji used by Manuka / Powari / many JP bases
                    ContainsToken(n, "atama") || ContainsToken(n, "kao") || ContainsToken(n, "kami") ||
                    ContainsToken(n, "hitomi") || ContainsToken(n, "mayu") || ContainsToken(n, "kuchi") ||
-                   ContainsToken(n, "mimi") || ContainsToken(n, "kubi") || ContainsToken(n, "manuka") ||
-                   ContainsToken(n, "powari");
+                   ContainsToken(n, "mimi") || ContainsToken(n, "kubi") || ContainsToken(n, "matsuge") ||
+                   ContainsToken(n, "mabataki") || ContainsToken(n, "manuka") || ContainsToken(n, "powari") ||
+                   ContainsToken(n, "lime") || ContainsToken(n, "chiffon") || ContainsToken(n, "chocolat") ||
+                   ContainsToken(n, "plum") || ContainsToken(n, "milk") || ContainsToken(n, "karin") ||
+                   ContainsToken(n, "rusk");
         }
 
         private static bool ContainsToken(string name, string token)
@@ -513,7 +550,9 @@ namespace XVR.Tools
             if (token == "head" || token == "hair" || token == "face" || token == "eye" ||
                 token == "wig" || token == "bang" || token == "braid" || token == "ponytail" ||
                 token == "atama" || token == "kao" || token == "kami" || token == "manuka" ||
-                token == "powari" || token == "hitomi")
+                token == "powari" || token == "hitomi" || token == "matsuge" || token == "mabataki" ||
+                token == "lime" || token == "chiffon" || token == "chocolat" || token == "plum" ||
+                token == "milk" || token == "karin" || token == "rusk")
                 return true;
             return startOk && endOk;
         }
