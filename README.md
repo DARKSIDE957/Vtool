@@ -195,6 +195,9 @@ Test on a copy of your project if you are unsure.
 
 ## Changelog
 
+### v2.4.4
+- Fix language picker rejecting French (was capped at Spanish index)
+
 ### v2.4.3
 - Full **French** language support (UI, dialogs, scan messages) with bilingual labels
 

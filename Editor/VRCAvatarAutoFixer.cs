@@ -235,7 +235,7 @@ namespace XVR.Tools
                     {
                         GUILayout.Label(L.T("lang.label") ?? "Language", CaptionStyle());
                         int next = EditorGUILayout.Popup(layoutLang, L.LanguageDisplayNames);
-                        if (next != layoutLang && next >= 0 && next <= 2)
+                        if (next != layoutLang && next >= 0 && next < L.LanguageDisplayNames.Length)
                         {
                             int lang = next;
                             Defer(() => L.Language = (VtoolLanguage)lang);
@@ -706,7 +706,7 @@ namespace XVR.Tools
                 }
             }
             catch { /* ignore */ }
-            return "2.4.3";
+            return "2.4.4";
         }
 
         private void CopyErrorCodes(AvatarScanResult scan)

@@ -29,7 +29,13 @@ namespace XVR.Tools
 
         public static VtoolLanguage Language
         {
-            get => (VtoolLanguage)EditorPrefs.GetInt(PrefsKey, (int)VtoolLanguage.English);
+            get
+            {
+                int v = EditorPrefs.GetInt(PrefsKey, (int)VtoolLanguage.English);
+                if (v < 0 || v > (int)VtoolLanguage.French)
+                    return VtoolLanguage.English;
+                return (VtoolLanguage)v;
+            }
             set => EditorPrefs.SetInt(PrefsKey, (int)value);
         }
 
