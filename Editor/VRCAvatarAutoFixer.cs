@@ -27,7 +27,6 @@ namespace XVR.Tools
         private bool layoutScanValid;
         private bool layoutHasAvatar;
         private bool layoutHasRollback;
-        private bool layoutHasPendingUpdate;
         private bool layoutShowLogo;
         private bool layoutShowIndividualFixes;
         private bool layoutShowCheckDetails;
@@ -52,7 +51,6 @@ namespace XVR.Tools
         {
             layoutHasAvatar = targetAvatar != null;
             layoutHasRollback = layoutHasAvatar && VtoolAvatarRollback.HasRollback(targetAvatar);
-            layoutHasPendingUpdate = VtoolPackageUpdateHandler.HasPendingUpdate;
             layoutShowLogo = logoTexture != null;
             layoutShowIndividualFixes = showIndividualFixes;
             layoutShowCheckDetails = showCheckDetails;
@@ -90,7 +88,6 @@ namespace XVR.Tools
 
             // Keep header / tabs visible; only the tab body scrolls (works in a small window).
             DrawHeader();
-            DrawUpdateBanner();
             DrawAvatarPicker();
 
             if (!layoutHasAvatar)
@@ -276,14 +273,6 @@ namespace XVR.Tools
             {
                 EditorGUILayout.EndHorizontal();
             }
-        }
-
-        private void DrawUpdateBanner()
-        {
-            if (!layoutHasPendingUpdate) return;
-            EditorGUILayout.HelpBox(L.T("update.detected") ?? "Update detected.", MessageType.Info);
-            if (GUILayout.Button(L.T("btn.apply_update") ?? "Apply Update"))
-                Defer(() => VtoolPackageUpdateHandler.CheckForPackageUpdate(silent: false, force: true));
         }
 
         private void DrawAvatarPicker()
@@ -706,7 +695,7 @@ namespace XVR.Tools
                 }
             }
             catch { /* ignore */ }
-            return "2.4.4";
+            return "2.4.5";
         }
 
         private void CopyErrorCodes(AvatarScanResult scan)

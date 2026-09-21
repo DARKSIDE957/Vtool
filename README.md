@@ -93,7 +93,7 @@ https://raw.githubusercontent.com/DARKSIDE957/Vtool/main/index.json
 **Step 3.** In Unity: **Vtool → Avatar Auto-Fixer Pro**
 
 > [!TIP]
-> You can update while Unity is open. If the window looks old after an update, use **Vtool → Apply Package Update (Reload)**.
+> After updating in VCC, reopen the Unity project (or let Unity recompile) so the new version loads.
 
 <br/>
 
@@ -194,6 +194,9 @@ Test on a copy of your project if you are unsure.
 <br/>
 
 ## Changelog
+
+### v2.4.5
+- Removed Apply Package Update / reload banner and menu (use VCC + Unity recompile instead)
 
 ### v2.4.4
 - Fix language picker rejecting French (was capped at Spanish index)

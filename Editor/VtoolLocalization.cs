@@ -241,15 +241,6 @@ namespace XVR.Tools
             Add("tip.use_selected", "Uses the GameObject currently selected in the Hierarchy.", "يستخدم الكائن المحدد حالياً في الهرمية.", "Usa el GameObject seleccionado en la Jerarquía.", "Utilise le GameObject actuellement sélectionné dans la Hiérarchie.");
             Add("btn.auto_detect", "Auto-Detect", "اكتشاف تلقائي", "Auto-detectar", "Détection auto");
             Add("tip.auto_detect", "Finds a VRCAvatarDescriptor in the scene and assigns it.", "يبحث عن VRCAvatarDescriptor في المشهد ويعينه.", "Busca un VRCAvatarDescriptor en la escena y lo asigna.", "Trouve un VRCAvatarDescriptor dans la scène et l'assigne.");
-            Add("update.detected", "Update detected. Reloading...", "تم اكتشاف تحديث. جارٍ إعادة التحميل...", "Actualización detectada. Recargando...", "Mise à jour détectée. Rechargement…");
-            Add("btn.apply_update", "Apply Update Now", "تطبيق التحديث الآن", "Aplicar actualización ahora", "Appliquer la mise à jour");
-            Add("update.dialog_title", "Vtool Update", "تحديث Vtool", "Actualización de Vtool", "Mise à jour Vtool");
-            Add("update.already_latest", "Already on the latest installed package.", "أنت بالفعل على أحدث حزمة مثبتة.", "Ya tienes el paquete instalado más reciente.", "Vous avez déjà le dernier package installé.");
-            Add("update.reload_body", "A new Vtool package was installed while Unity was open.\n\nUnity will refresh and reload now so the update takes effect.", "تم تثبيت حزمة Vtool جديدة أثناء فتح Unity.\n\nسيتم تحديث Unity وإعادة التحميل الآن لتطبيق التحديث.", "Se instaló un paquete nuevo de Vtool con Unity abierto.\n" +
-                "\n" +
-                "Unity se actualizará y recargará ahora para aplicar el cambio.", "Un nouveau package Vtool a été installé pendant que Unity était ouvert.\n" +
-                "\n" +
-                "Unity va actualiser et recharger maintenant pour appliquer la mise à jour.");
             Add("rollback.banner", "Rollback point saved from before Vtool changes.", "تم حفظ نقطة تراجع من قبل تغييرات Vtool.", "Punto de rollback guardado antes de los cambios de Vtool.", "Point de restauration enregistré avant les changements Vtool.");
             Add("rollback.none", "No rollback snapshot yet. Use Backup or Fix All first.", "لا توجد نقطة تراجع بعد. استخدم النسخ الاحتياطي أو إصلاح الكل أولاً.", "Aún no hay snapshot de rollback. Usa Copia o Fix All primero.", "Pas encore de snapshot de restauration. Utilisez d'abord Sauvegarde ou Réparer tout.");
             Add("btn.rollback", "Rollback Avatar", "تراجع الأفاتار", "Revertir avatar", "Restaurer l'avatar");
