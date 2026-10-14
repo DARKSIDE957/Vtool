@@ -428,7 +428,7 @@ namespace XVR.Tools
                 EditorGUILayout.HelpBox(scan.Summary ?? string.Empty,
                     scan.BlockerCount > 0 ? MessageType.Error : scan.WarningCount > 0 ? MessageType.Warning : MessageType.Info);
 
-                if (GUILayout.Button(new GUIContent(L.T("btn.copy_errors") ?? "Copy Error Codes", L.T("tip.copy_errors") ?? string.Empty), GUILayout.Height(24)))
+                if (GUILayout.Button(new GUIContent(L.T("btn.copy_errors") ?? "Copy Support Report", L.T("tip.copy_errors") ?? string.Empty), GUILayout.Height(24)))
                     Defer(() => CopyErrorCodes(scan));
                 Caption("cap.copy_errors");
             });
@@ -695,7 +695,7 @@ namespace XVR.Tools
                 }
             }
             catch { /* ignore */ }
-            return "2.4.5";
+            return "2.4.6";
         }
 
         private void CopyErrorCodes(AvatarScanResult scan)
@@ -703,12 +703,13 @@ namespace XVR.Tools
             if (scan.Issues == null)
                 scan = VtoolAvatarScan.Scan(targetAvatar);
 
-            string report = VtoolAvatarScan.BuildDiagnosticReport(targetAvatar, scan, ReadPackageVersion());
+            bool hasRollback = VtoolAvatarRollback.HasRollback(targetAvatar);
+            string report = VtoolAvatarScan.BuildDiagnosticReport(targetAvatar, scan, ReadPackageVersion(), hasRollback);
             EditorGUIUtility.systemCopyBuffer = report;
-            Debug.Log("[Vtool] Diagnostic report copied to clipboard.\n" + report);
+            Debug.Log("[Vtool] Support report copied to clipboard.\n" + report);
             EditorUtility.DisplayDialog(
                 L.TDialog("dlg.copy_errors.title") ?? "Copied",
-                L.TDialog("dlg.copy_errors.body") ?? "Error codes and scan details were copied to the clipboard. Paste them when reporting a problem.",
+                L.TDialog("dlg.copy_errors.body") ?? "Support report copied to the clipboard (English). Paste it when reporting a problem, and include the first Console exception if Play Mode or upload failed.",
                 L.TDialog("dlg.ok") ?? "OK");
         }
 

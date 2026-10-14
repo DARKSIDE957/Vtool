@@ -585,7 +585,7 @@ namespace XVR.Tools
             return score;
         }
 
-        private static string HierarchyPath(Transform t)
+        public static string HierarchyPath(Transform t)
         {
             if (t == null) return string.Empty;
             var parts = new List<string>();
@@ -593,6 +593,44 @@ namespace XVR.Tools
                 parts.Add(cur.name);
             parts.Reverse();
             return string.Join("/", parts);
+        }
+
+        public static List<string> CollectHeadRelatedRendererNames(GameObject avatar, int max = 30)
+        {
+            var names = new List<string>();
+            if (avatar == null || max <= 0) return names;
+
+            foreach (var smr in avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                if (smr == null || names.Count >= max) break;
+                bool nameHit = IsHeadRelatedName(smr.name) || IsHeadRelatedName(smr.gameObject.name) ||
+                               (smr.sharedMesh != null && IsHeadRelatedName(smr.sharedMesh.name));
+                bool faceBlend = LooksLikeFaceMesh(smr);
+                bool headRoot = IsHeadRegionRootBone(smr);
+                if (!nameHit && !faceBlend && !headRoot) continue;
+
+                string path = HierarchyPath(smr.transform);
+                string reason = nameHit ? "name" : faceBlend ? "faceBlendShapes" : "headRootBone";
+                names.Add(path + " [" + reason + "]");
+            }
+
+            foreach (var r in avatar.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                if (r == null || names.Count >= max) break;
+                if (!IsHeadRelatedName(r.name) && !IsHeadRelatedName(r.gameObject.name)) continue;
+                names.Add(HierarchyPath(r.transform) + " [name]");
+            }
+
+            return names;
+        }
+
+        public static string GetBlueprintId(GameObject avatar)
+        {
+            var pipeline = GetPipelineManager(avatar);
+            if (pipeline == null) return string.Empty;
+            if (TryGetMember(pipeline, pipeline.GetType(), "blueprintId", out var id) && id != null)
+                return id.ToString() ?? string.Empty;
+            return string.Empty;
         }
 
         public static bool ClearBlueprintId(GameObject avatar)

@@ -111,6 +111,30 @@ namespace XVR.Tools
             }
         }
 
+        // English-only (no bilingual suffix / Arabic shaping) — for support report clipboard.
+        public static string TEn(string key)
+        {
+            EnsureReady();
+            if (!Table.TryGetValue(key, out var e))
+                return key ?? string.Empty;
+            return e.En ?? key ?? string.Empty;
+        }
+
+        public static string TFEn(string key, params object[] args)
+        {
+            EnsureReady();
+            if (!Table.TryGetValue(key, out var e))
+                return key ?? string.Empty;
+            try
+            {
+                return string.Format(e.En ?? key ?? string.Empty, args ?? System.Array.Empty<object>());
+            }
+            catch
+            {
+                return e.En ?? key ?? string.Empty;
+            }
+        }
+
         // Native EditorUtility.DisplayDialog — shape Arabic for connected letters, do not reverse.
         public static string TDialog(string key)
         {
@@ -248,11 +272,11 @@ namespace XVR.Tools
             Add("cap.rollback", "Restores the saved avatar copy and texture import settings if changed.", "يستعيد نسخة الأفاتار المحفوظة وإعدادات استيراد الأنسجة إن تغيّرت.", "Restaura la copia del avatar y los ajustes de texturas si cambiaron.", "Restaure la copie de l'avatar et les réglages d'import des textures s'ils ont changé.");
             Add("sec.status", "Status", "الحالة", "Estado", "État");
             Add("fold.check_details", "Details (performance / VRChat / textures)", "التفاصيل (الأداء / VRChat / الأنسجة)", "Detalles (rendimiento / VRChat / texturas)", "Détails (performances / VRChat / textures)");
-            Add("btn.copy_errors", "Copy Error Codes", "نسخ أكواد الأخطاء", "Copiar códigos de error", "Copier les codes d'erreur");
-            Add("tip.copy_errors", "Copies blocker/warning codes plus scan stats to the clipboard so you can paste them when asking for help.", "ينسخ أكواد الموانع والتحذيرات مع إحصائيات الفحص إلى الحافظة للصقها عند طلب المساعدة.", "Copia códigos de bloqueo/aviso y estadísticas al portapapeles para pegarlos al pedir ayuda.", "Copie les codes de blocage/avertissement et les stats d'analyse dans le presse-papiers pour les coller quand vous demandez de l'aide.");
-            Add("cap.copy_errors", "Paste this report when asking what is wrong with the avatar or Vtool.", "الصق هذا التقرير عند السؤال عما خطأ في الأفاتار أو Vtool.", "Pega este informe al preguntar qué falla en el avatar o en Vtool.", "Collez ce rapport quand vous demandez ce qui ne va pas avec l'avatar ou Vtool.");
+            Add("btn.copy_errors", "Copy Support Report", "نسخ تقرير الدعم", "Copiar informe de soporte", "Copier le rapport de support");
+            Add("tip.copy_errors", "Copies an English support report: packages, issue codes, named objects, mesh/head snapshot. Paste it when asking for help — also paste the first Console error above any BuildFrameworkOptimizeHook abort.", "ينسخ تقرير دعم بالإنجليزية: الحزم، أكواد المشكلات، والكائنات المسماة ولقطة الشبكة/الرأس. الصقه عند طلب المساعدة — والصق أيضاً أول خطأ Console فوق أي فشل BuildFrameworkOptimizeHook.", "Copia un informe de soporte en inglés: paquetes, códigos, objetos nombrados y snapshot de malla/cabeza. Pégalo al pedir ayuda — y pega también el primer error de Console encima de cualquier aborto BuildFrameworkOptimizeHook.", "Copie un rapport de support en anglais : packages, codes, objets nommés et aperçu mesh/tête. Collez-le pour demander de l'aide — et collez aussi la première erreur Console au-dessus de tout abort BuildFrameworkOptimizeHook.");
+            Add("cap.copy_errors", "Paste this English report (plus Console errors) when asking what is wrong with the avatar or Vtool.", "الصق هذا التقرير الإنجليزي (مع أخطاء Console) عند السؤال عما خطأ في الأفاتار أو Vtool.", "Pega este informe en inglés (más errores de Console) al preguntar qué falla en el avatar o en Vtool.", "Collez ce rapport anglais (plus les erreurs Console) quand vous demandez ce qui ne va pas avec l'avatar ou Vtool.");
             Add("dlg.copy_errors.title", "Copied", "تم النسخ", "Copiado", "Copié");
-            Add("dlg.copy_errors.body", "Error codes and scan details were copied to the clipboard. Paste them when reporting a problem.", "تم نسخ أكواد الأخطاء وتفاصيل الفحص إلى الحافظة. الصقها عند الإبلاغ عن مشكلة.", "Los códigos de error y el escaneo se copiaron al portapapeles. Pégalos al reportar un problema.", "Les codes d'erreur et les détails d'analyse ont été copiés dans le presse-papiers. Collez-les pour signaler un problème.");
+            Add("dlg.copy_errors.body", "Support report copied to the clipboard (English). Paste it when reporting a problem, and include the first Console exception if Play Mode or upload failed.", "تم نسخ تقرير الدعم إلى الحافظة (بالإنجليزية). الصقه عند الإبلاغ عن مشكلة، وأضف أول استثناء من Console إن فشل Play Mode أو الرفع.", "Informe de soporte copiado al portapapeles (inglés). Pégalo al reportar un problema e incluye la primera excepción de Console si falló Play Mode o la subida.", "Rapport de support copié dans le presse-papiers (anglais). Collez-le pour signaler un problème, et incluez la première exception Console si le Play Mode ou l'upload a échoué.");
             Add("sec.blockers", "Blockers ({0})", "موانع الرفع ({0})", "Bloqueos ({0})", "Blocages ({0})");
             Add("sec.warnings", "Warnings ({0})", "تحذيرات ({0})", "Advertencias ({0})", "Avertissements ({0})");
             Add("sec.result", "Result", "النتيجة", "Resultado", "Résultat");
@@ -622,6 +646,8 @@ namespace XVR.Tools
             Add("hint.quest_mats", "Use Quest conversion in Textures tab", "استخدم تحويل Quest في تبويب Textures", "Usa la conversión Quest en la pestaña Textures", "Utilisez la conversion Quest dans l'onglet Textures");
             Add("issue.height", "Unusual avatar height ({0}m)", "ارتفاع أفاتار غير معتاد ({0}m)", "Altura de avatar inusual ({0}m)", "Hauteur d'avatar inhabituelle ({0}m)");
             Add("hint.height", "Check view position and scale", "تحقق من موضع الرؤية والمقياس", "Revisa posición de vista y escala", "Vérifiez la position de vue et l'échelle");
+            Add("issue.null_avatar_animator", "{0} Animator(s) under the avatar have no Avatar assigned (can break NDMF / Avatar Optimizer Trace and Optimize)", "{0} Animator تحت الأفاتار بلا Avatar معيّن (قد يكسر NDMF / Avatar Optimizer Trace and Optimize)", "{0} Animator(es) bajo el avatar sin Avatar asignado (puede romper NDMF / Avatar Optimizer Trace and Optimize)", "{0} Animator(s) sous l'avatar sans Avatar assigné (peut casser NDMF / Avatar Optimizer Trace and Optimize)");
+            Add("hint.null_avatar_animator", "Assign an Avatar on those Animators or remove unused ones, then retry Play Mode / upload", "عيّن Avatar على تلك الـ Animators أو أزل غير المستخدم، ثم أعد Play Mode / الرفع", "Asigna un Avatar en esos Animators o quita los no usados, luego reintenta Play Mode / subida", "Assignez un Avatar sur ces Animators ou retirez les inutiles, puis réessayez Play Mode / upload");
         }
     }
 }

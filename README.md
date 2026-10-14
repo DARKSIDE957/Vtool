@@ -189,11 +189,16 @@ Test on a copy of your project if you are unsure.
 > If the head disappears:
 > 1. Click **Rollback Avatar** immediately (or Unity **Ctrl+Z**)
 > 2. Note which Fix button you used (**Fix All**, **Reduce PhysBones**, **Remove missing scripts**, etc.)
-> 3. Use **Check → Copy Error Codes** and [open an issue](https://github.com/DARKSIDE957/Vtool/issues) with that report + avatar setup notes
+> 3. Use **Check → Copy Support Report** and [open an issue](https://github.com/DARKSIDE957/Vtool/issues) with that report + the first Console exception (if Play Mode / upload failed)
 
 <br/>
 
 ## Changelog
+
+### v2.4.6
+- **Copy Support Report** (English clipboard): packages (VRC SDK / NDMF / Modular Avatar / Avatar Optimizer / VRCFury), named issue objects, mesh & head snapshots, NDMF/Play Mode note, user-notes template
+- Warn when child Animators have no Avatar assigned (`W_NULL_AVATAR_ANIMATOR`) — common cause of NDMF `BuildFrameworkOptimizeHook` aborts
+- Support report always English even when UI is Arabic / Spanish / French
 
 ### v2.4.5
 - Removed Apply Package Update / reload banner and menu (use VCC + Unity recompile instead)
