@@ -196,9 +196,9 @@ Test on a copy of your project if you are unsure.
 ## Changelog
 
 ### v2.4.6
-- **Copy Support Report** (English clipboard): packages (VRC SDK / NDMF / Modular Avatar / Avatar Optimizer / VRCFury), named issue objects, mesh & head snapshots, NDMF/Play Mode note, user-notes template
-- Warn when child Animators have no Avatar assigned (`W_NULL_AVATAR_ANIMATOR`) — common cause of NDMF `BuildFrameworkOptimizeHook` aborts
-- Support report always English even when UI is Arabic / Spanish / French
+- **Copy Support Report** (Check tab): copies an easy English help report — installed tools, what failed and which objects, mesh/head snapshot, NDMF note, and space to paste Console errors
+- Report stays English even if the UI is Arabic, Spanish, or French
+- New warning when a child Animator has no Avatar assigned (`W_NULL_AVATAR_ANIMATOR`) — a common cause of NDMF Play Mode / upload failures like `BuildFrameworkOptimizeHook`
 
 ### v2.4.5
 - Removed Apply Package Update / reload banner and menu (use VCC + Unity recompile instead)
